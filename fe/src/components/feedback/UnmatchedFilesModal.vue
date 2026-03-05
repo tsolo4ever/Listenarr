@@ -3,7 +3,7 @@
     <template #header>
       <ModalHeader
         title="Unmatched Files"
-        :icon="PhFolderSimpleMagnifyingGlass"
+        :icon="PhMagnifyingGlass"
         @close="close"
       />
     </template>
@@ -115,7 +115,7 @@ import ModalBody from '@/components/feedback/ModalBody.vue'
 import ModalFooter from '@/components/feedback/ModalFooter.vue'
 import AddLibraryModal from '@/components/domain/audiobook/AddLibraryModal.vue'
 import {
-  PhFolderSimpleMagnifyingGlass,
+  PhMagnifyingGlass,
   PhSpinner,
   PhWarning,
   PhCheckCircle,

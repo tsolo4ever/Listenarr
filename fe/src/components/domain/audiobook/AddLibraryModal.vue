@@ -368,6 +368,7 @@ interface AudimetaPerson {
   name?: string
 }
 interface AudimetaSeries {
+  asin?: string
   name?: string
   position?: string | number
 }

@@ -364,7 +364,10 @@ public class ManualImportController : ControllerBase
         
         if (!string.IsNullOrWhiteSpace(audiobook.Series))
             variables["Series"] = audiobook.Series;
-        
+
+        if (!string.IsNullOrWhiteSpace(audiobook.SeriesNumber))
+            variables["SeriesNumber"] = audiobook.SeriesNumber;
+
         if (!string.IsNullOrWhiteSpace(audiobook.PublishYear))
             variables["Year"] = audiobook.PublishYear;
         

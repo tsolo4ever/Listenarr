@@ -1532,12 +1532,52 @@ namespace Listenarr.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAudiobook(int id)
+        public async Task<IActionResult> DeleteAudiobook(int id, [FromQuery] bool deleteFiles = false)
         {
             var audiobook = await _repo.GetByIdAsync(id);
             if (audiobook == null)
             {
                 return NotFound(new { message = "Audiobook not found" });
+            }
+
+            // Optionally delete physical audio files from disk
+            if (deleteFiles)
+            {
+                var files = await _dbContext.AudiobookFiles
+                    .Where(f => f.AudiobookId == id && f.Path != null)
+                    .ToListAsync();
+
+                var parentDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var file in files)
+                {
+                    try
+                    {
+                        if (System.IO.File.Exists(file.Path))
+                        {
+                            System.IO.File.Delete(file.Path!);
+                            _logger.LogInformation("Deleted audio file {Path} for audiobook {Id}", file.Path, id);
+                            var dir = System.IO.Path.GetDirectoryName(file.Path);
+                            if (!string.IsNullOrEmpty(dir)) parentDirs.Add(dir);
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException)
+                    {
+                        _logger.LogWarning(ex, "Failed to delete audio file {Path}", file.Path);
+                    }
+                }
+                // Remove empty parent directories
+                foreach (var dir in parentDirs)
+                {
+                    try
+                    {
+                        if (System.IO.Directory.Exists(dir) && !System.IO.Directory.EnumerateFileSystemEntries(dir).Any())
+                            System.IO.Directory.Delete(dir);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException)
+                    {
+                        _logger.LogDebug(ex, "Could not remove directory {Dir}", dir);
+                    }
+                }
             }
 
             // Delete associated image from cache if it exists

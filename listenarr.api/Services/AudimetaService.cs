@@ -96,6 +96,33 @@ namespace Listenarr.Api.Services
             }
         }
 
+        public virtual async Task<object?> GetSeriesMetaAsync(string seriesAsin, string region = "us")
+        {
+            try
+            {
+                var url = $"{BASE_URL}/series/{Uri.EscapeDataString(seriesAsin)}?cache=true&region={region}";
+                _logger.LogInformation("Fetching audimeta.de series meta for ASIN {Asin}: {Url}", seriesAsin, url);
+                var resp = await GetWithTimeoutAsync(url);
+                if (resp == null)
+                {
+                    _logger.LogWarning("Audimeta series meta request timed out for ASIN {Asin}", seriesAsin);
+                    return null;
+                }
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Audimeta series meta returned status code {StatusCode} for ASIN {Asin}", resp.StatusCode, seriesAsin);
+                    return null;
+                }
+                var json = await resp.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<object>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException)
+            {
+                _logger.LogError(ex, "Error fetching audimeta.de series meta for ASIN {Asin}", seriesAsin);
+                return null;
+            }
+        }
+
         public virtual async Task<AudimetaBookResponse?> GetBookMetadataAsync(string asin, string region = "us", bool useCache = true, string? language = null)
         {
             try

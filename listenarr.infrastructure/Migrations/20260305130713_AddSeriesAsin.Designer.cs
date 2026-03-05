@@ -3,6 +3,7 @@ using System;
 using Listenarr.Infrastructure.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Listenarr.Infrastructure.Migrations
 {
     [DbContext(typeof(ListenArrDbContext))]
-    partial class ListenArrDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260305130713_AddSeriesAsin")]
+    partial class AddSeriesAsin
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.13");
@@ -1059,46 +1062,6 @@ namespace Listenarr.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("RootFolders", (string)null);
-                });
-
-            modelBuilder.Entity("Listenarr.Domain.Models.SeriesMetadata", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsComplete")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool?>("IsCompleteInferred")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("LastFetchedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("NewestBookDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SeriesAsin")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("TotalBooks")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SeriesAsin")
-                        .IsUnique();
-
-                    b.ToTable("SeriesMetadata");
                 });
 
             modelBuilder.Entity("Listenarr.Domain.Models.User", b =>

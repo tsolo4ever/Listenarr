@@ -1,12 +1,7 @@
 name: "CodeQL Analysis"
 
 on:
-  push:
-    branches: [ "canary", "main", "feature/*" ]
-  pull_request:
-    branches: [ "canary", "main" ]
-  schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sundays
+  workflow_dispatch: # disabled for personal fork — run manually if needed
 
 jobs:
   analyze:

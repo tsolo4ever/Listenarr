@@ -1,10 +1,7 @@
 name: Run Tests
 
 on:
-  push:
-    branches: [ develop, main, canary, feature/* ]
-  pull_request:
-    branches: [ develop, main, canary ]
+  workflow_dispatch: # disabled for personal fork — run manually if needed
 
 permissions:
   contents: read

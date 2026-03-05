@@ -6,8 +6,7 @@ permissions:
   packages: write
 
 on:
-  push:
-    branches: [ develop ]
+  workflow_dispatch: # disabled for personal fork — run manually if needed
 
 jobs:
   nightly-build:

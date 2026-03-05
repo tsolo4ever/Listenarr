@@ -1,5 +1,5 @@
 <template>
-  <Modal :visible="isOpen" size="xl" @close="close">
+  <Modal :visible="isOpen" size="lg" @close="close">
     <template #header>
       <ModalHeader
         title="Unmatched Files"

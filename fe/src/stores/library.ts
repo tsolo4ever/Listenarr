@@ -49,9 +49,9 @@ export const useLibraryStore = defineStore('library', () => {
     }
   }
 
-  async function removeFromLibrary(id: number) {
+  async function removeFromLibrary(id: number, deleteFiles = false) {
     try {
-      await apiService.removeFromLibrary(id)
+      await apiService.removeFromLibrary(id, deleteFiles)
       // Remove from local state
       audiobooks.value = audiobooks.value.filter((book) => book.id !== id)
       // Remove from selection if selected

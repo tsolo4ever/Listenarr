@@ -405,12 +405,15 @@
       </div>
     </div>
 
-    <DeleteConfirmationModal :visible="showDeleteDialog" title="Delete Audiobook" @close="cancelDelete"
+    <DeleteConfirmationModal :visible="showDeleteDialog" title="Confirm Deletion" @close="cancelDelete"
       @confirm="executeDelete">
       <template #default>
-        <p>Are you sure you want to delete <strong>{{ audiobook.title }}</strong>?</p>
-        <p class="warning-text">This action cannot be undone. The audiobook data and cached images will be permanently
-          removed.</p>
+        <p>Are you sure you want to delete <strong>{{ audiobook.title }}</strong>? This action cannot be undone. The audiobook data and cached images will be permanently removed.</p>
+        <label class="delete-files-option">
+          <input type="checkbox" v-model="deleteFilesOnDisk" />
+          Also delete audio files from disk
+        </label>
+        <p v-if="deleteFilesOnDisk" class="warning-text">The physical audio files will be permanently deleted from your file system.</p>
       </template>
     </DeleteConfirmationModal>
   </div>
@@ -521,6 +524,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const activeTab = ref<DetailTab>('details')
 const showDeleteDialog = ref(false)
+const deleteFilesOnDisk = ref(false)
 const showManualSearchModal = ref(false)
 const deleting = ref(false)
 const showFullDescription = ref(false)
@@ -1226,6 +1230,7 @@ function toggleMonitored() {
 }
 
 function confirmDelete() {
+  deleteFilesOnDisk.value = false
   showDeleteDialog.value = true
 }
 
@@ -1238,7 +1243,7 @@ async function executeDelete() {
 
   deleting.value = true
   try {
-    const success = await libraryStore.removeFromLibrary(audiobook.value.id)
+    const success = await libraryStore.removeFromLibrary(audiobook.value.id, deleteFilesOnDisk.value)
     if (success) {
       // Navigate back to library after successful deletion
       router.push('/audiobooks')
@@ -2810,5 +2815,28 @@ a.identifier-link:hover {
 .secondary-actions .delete-btn {
   padding-left: 10px;
   padding-right: 10px;
+}
+
+.delete-files-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.25rem;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.95rem;
+}
+
+.delete-files-option input[type="checkbox"] {
+  accent-color: #f03e3e;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.warning-text {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #f03e3e;
 }
 </style>

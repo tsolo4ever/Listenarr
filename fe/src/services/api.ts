@@ -1059,8 +1059,9 @@ class ApiService {
     })
   }
 
-  async removeFromLibrary(id: number): Promise<{ message: string; id: number }> {
-    return this.request<{ message: string; id: number }>(`/library/${id}`, {
+  async removeFromLibrary(id: number, deleteFiles = false): Promise<{ message: string; id: number }> {
+    const qs = deleteFiles ? '?deleteFiles=true' : ''
+    return this.request<{ message: string; id: number }>(`/library/${id}${qs}`, {
       method: 'DELETE',
     })
   }

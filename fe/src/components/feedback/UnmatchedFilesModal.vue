@@ -184,6 +184,16 @@ watch(
     try {
       const result = await apiService.scanUnmatchedFiles(props.rootFolder.id)
       jobId = result.jobId
+      // Poll once immediately — handles fast scans that complete before SignalR fires
+      const check = await apiService.getUnmatchedResults(jobId)
+      if (check.status === 'Completed') {
+        items.value = check.items
+        phase.value = 'results'
+      } else if (check.status === 'Failed') {
+        phase.value = 'error'
+        errorMessage.value = check.error || 'Scan failed'
+      }
+      // Otherwise SignalR will deliver the completion event
     } catch (e) {
       phase.value = 'error'
       errorMessage.value = (e as Error)?.message || 'Failed to start scan'

@@ -90,9 +90,26 @@
 
     <template #footer>
       <ModalFooter :showCancel="false">
-        <template #right>
-          <button class="btn" @click="close">Close</button>
+        <template #left>
+          <div v-if="phase === 'results' && asinCount > 0 && !bulkAdding" class="bulk-hint">
+            {{ asinCount }} item{{ asinCount !== 1 ? 's' : '' }} with ASIN
+          </div>
+          <div v-if="bulkAdding" class="bulk-progress">
+            <PhSpinner class="ph-spin" />
+            Adding {{ bulkDone }} / {{ bulkTotal }}…
+          </div>
         </template>
+        <button
+          v-if="phase === 'results' && asinCount > 0"
+          class="btn btn-primary"
+          :disabled="bulkAdding"
+          @click="addAllWithAsin"
+          title="Search Audimeta for every item with an ASIN and add matches automatically"
+        >
+          <PhRocketLaunch />
+          Add All (ASIN match)
+        </button>
+        <button class="btn" @click="close" :disabled="bulkAdding">Close</button>
       </ModalFooter>
     </template>
   </Modal>
@@ -120,6 +137,7 @@ import {
   PhWarning,
   PhCheckCircle,
   PhX,
+  PhRocketLaunch,
 } from '@phosphor-icons/vue'
 import { apiService } from '@/services/api'
 import { signalRService } from '@/services/signalr'
@@ -146,6 +164,11 @@ const phase = ref<Phase>('scanning')
 const items = ref<UnmatchedFileItem[]>([])
 const errorMessage = ref('')
 const addingItem = ref<UnmatchedFileItem | null>(null)
+const bulkAdding = ref(false)
+const bulkDone = ref(0)
+const bulkTotal = ref(0)
+
+const asinCount = computed(() => items.value.filter((i) => i.asin).length)
 
 const rootFolderName = computed(() => props.rootFolder?.name || props.rootFolder?.path || 'folder')
 
@@ -262,6 +285,102 @@ async function onAdded(audiobook: Audiobook) {
 
 function ignore(item: UnmatchedFileItem) {
   items.value = items.value.filter((i) => i.fullPath !== item.fullPath)
+}
+
+// Minimal Audimeta response shape — only what we need for adding
+interface AudimetaPayload {
+  asin?: string
+  title?: string
+  subtitle?: string
+  publishDate?: string
+  releaseDate?: string
+  authors?: { name?: string }[]
+  narrators?: { name?: string }[]
+  series?: { title?: string; part?: string }[]
+  description?: string
+  imageUrl?: string
+  lengthMinutes?: number
+  language?: string
+  genres?: { name?: string }[]
+}
+
+function mapToAudible(meta: AudimetaPayload, fallback: UnmatchedFileItem): AudibleBookMetadata {
+  const year = (meta.publishDate || meta.releaseDate || '').split(/[-/]/)[0] || fallback.year
+  const firstSeries = meta.series?.[0]
+  return {
+    asin: meta.asin || fallback.asin || '',
+    title: meta.title || fallback.title || '',
+    subtitle: meta.subtitle,
+    authors: (meta.authors || []).map((a) => a?.name).filter(Boolean) as string[],
+    narrators: (meta.narrators || []).map((n) => n?.name).filter(Boolean) as string[],
+    series: firstSeries?.title || fallback.series,
+    seriesNumber: firstSeries?.part || fallback.seriesNumber,
+    publishYear: year || undefined,
+    description: meta.description || fallback.description,
+    imageUrl: meta.imageUrl,
+    durationSeconds: typeof meta.lengthMinutes === 'number' ? meta.lengthMinutes * 60 : undefined,
+    language: meta.language,
+    genres: (meta.genres || []).map((g) => g?.name).filter(Boolean) as string[],
+  }
+}
+
+async function addAllWithAsin() {
+  const candidates = items.value.filter((i) => i.asin)
+  if (!candidates.length) return
+
+  bulkAdding.value = true
+  bulkDone.value = 0
+  bulkTotal.value = candidates.length
+  let added = 0
+  let skipped = 0
+
+  for (const item of candidates) {
+    try {
+      // Fetch Audimeta metadata for this ASIN
+      const resp = await apiService.getAudibleMetadata<
+        { source?: string; metadata?: AudimetaPayload } | AudimetaPayload
+      >(item.asin!)
+
+      // Unwrap response — may be { source, metadata } or direct Audimeta payload
+      const raw =
+        resp && 'metadata' in resp && resp.metadata ? resp.metadata : (resp as AudimetaPayload)
+
+      if (!raw?.title) {
+        // No metamatch — skip, leave in table
+        skipped++
+        bulkDone.value++
+        continue
+      }
+
+      const metadata = mapToAudible(raw, item)
+      const { audiobook } = await apiService.addToLibrary(metadata)
+
+      try {
+        await apiService.startManualImport({
+          path: item.bookFolder,
+          mode: 'interactive',
+          inputMode: 'move',
+          items: [{ fullPath: item.fullPath, matchedAudiobookId: audiobook.id }],
+        })
+      } catch {
+        // link failure is non-fatal — book was added
+      }
+
+      items.value = items.value.filter((i) => i.fullPath !== item.fullPath)
+      added++
+    } catch {
+      skipped++
+    }
+    bulkDone.value++
+  }
+
+  bulkAdding.value = false
+
+  if (added > 0) {
+    toast.success('Bulk add complete', `Added ${added} book${added !== 1 ? 's' : ''}${skipped > 0 ? `, ${skipped} skipped (no match)` : ''}`)
+  } else {
+    toast.info('No matches found', 'No Audimeta records found for the ASINs in this scan')
+  }
 }
 </script>
 
@@ -386,5 +505,18 @@ function ignore(item: UnmatchedFileItem) {
 .btn-sm {
   padding: 0.25rem 0.6rem;
   font-size: 0.85rem;
+}
+
+.bulk-hint {
+  font-size: 0.85rem;
+  color: #868e96;
+}
+
+.bulk-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #4dabf7;
 }
 </style>

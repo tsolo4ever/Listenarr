@@ -349,30 +349,18 @@ public class ManualImportController : ControllerBase
             extension = ".m4b"; // Fallback if no extension
         }
 
-        // Build variables for the pattern - only include non-empty values
-        var variables = new Dictionary<string, object>();
-        
-        // Get first author from Authors list
-        var author = audiobook.Authors?.FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(author))
-            variables["Author"] = author;
-        
-        if (!string.IsNullOrWhiteSpace(audiobook.Title))
-            variables["Title"] = audiobook.Title;
-        else
-            variables["Title"] = "Unknown Title"; // Title is required as fallback
-        
-        if (!string.IsNullOrWhiteSpace(audiobook.Series))
-            variables["Series"] = audiobook.Series;
-        
-        if (!string.IsNullOrWhiteSpace(audiobook.PublishYear))
-            variables["Year"] = audiobook.PublishYear;
-        
-        if (metadata.DiscNumber.HasValue && metadata.DiscNumber.Value > 0)
-            variables["DiskNumber"] = metadata.DiscNumber.Value.ToString("00");
-        
-        if (metadata.TrackNumber.HasValue && metadata.TrackNumber.Value > 0)
-            variables["ChapterNumber"] = metadata.TrackNumber.Value.ToString();
+        // Build variables for the pattern - always include all keys so ApplyNamingPattern
+        // can properly clean up adjacent separators when values are empty
+        var variables = new Dictionary<string, object>
+        {
+            { "Author", audiobook.Authors?.FirstOrDefault() ?? string.Empty },
+            { "Title", !string.IsNullOrWhiteSpace(audiobook.Title) ? audiobook.Title : "Unknown Title" },
+            { "Series", audiobook.Series ?? string.Empty },
+            { "SeriesNumber", audiobook.SeriesNumber ?? string.Empty },
+            { "Year", audiobook.PublishYear ?? string.Empty },
+            { "DiskNumber", (metadata.DiscNumber.HasValue && metadata.DiscNumber.Value > 0) ? metadata.DiscNumber.Value.ToString("00") : string.Empty },
+            { "ChapterNumber", (metadata.TrackNumber.HasValue && metadata.TrackNumber.Value > 0) ? metadata.TrackNumber.Value.ToString() : string.Empty },
+        };
 
         string relativePath;
 

@@ -24,6 +24,7 @@ namespace Listenarr.Infrastructure.Models
         public DbSet<ProcessExecutionLog> ProcessExecutionLogs { get; set; }
         public DbSet<RootFolder> RootFolders { get; set; }
         public DbSet<UserSession> UserSessions { get; set; }
+        public DbSet<SeriesMetadata> SeriesMetadata { get; set; }
 
         public ListenArrDbContext(DbContextOptions<ListenArrDbContext> options)
             : base(options)
@@ -63,6 +64,8 @@ namespace Listenarr.Infrastructure.Models
 
             modelBuilder.Entity<Audiobook>().HasIndex(a => a.Monitored);
             modelBuilder.Entity<Audiobook>().HasIndex(a => a.LastSearchTime);
+
+            modelBuilder.Entity<SeriesMetadata>().HasIndex(s => s.SeriesAsin).IsUnique();
 
             modelBuilder.Entity<History>().HasIndex(h => h.Timestamp);
 

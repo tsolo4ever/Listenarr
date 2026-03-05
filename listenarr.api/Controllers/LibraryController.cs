@@ -548,6 +548,15 @@ namespace Listenarr.Api.Controllers
             _logger.LogInformation("Added audiobook '{Title}' (ASIN: {Asin}) to library with Monitored={Monitored}, QualityProfileId={QualityProfileId}, AutoSearch={AutoSearch}",
                 audiobook.Title, audiobook.Asin, request.Monitored, audiobook.QualityProfileId, request.AutoSearch);
 
+            // Upsert series metadata and kick off a background refresh if this book belongs to a series
+            if (!string.IsNullOrWhiteSpace(audiobook.SeriesAsin))
+            {
+                using var seriesScope = _scopeFactory.CreateScope();
+                var seriesSvc = seriesScope.ServiceProvider.GetRequiredService<ISeriesMetadataService>();
+                await seriesSvc.UpsertAsync(audiobook.SeriesAsin, audiobook.Series ?? string.Empty);
+                _ = Task.Run(() => seriesSvc.RefreshFromAudimetaAsync(audiobook.SeriesAsin));
+            }
+
             return Ok(new { message = "Audiobook added to library successfully", audiobook });
         }
 

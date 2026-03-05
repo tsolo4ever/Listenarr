@@ -29,6 +29,7 @@ import type {
   AudiobookExternalIdentifier,
   AudiobookExternalIdentifierInput,
   UnmatchedFilesResponse,
+  SeriesMetadata,
 } from '@/types'
 import { getStartupConfigCached, getCachedStartupConfig, resetCache as resetStartupConfigCache } from './startupConfigCache'
 import { sessionTokenManager } from '@/utils/sessionToken'
@@ -354,6 +355,25 @@ class ApiService {
     return this.request<unknown>(
       `/search/audimeta/series/books/${encodeURIComponent(seriesAsin)}?${params}`,
     )
+  }
+
+  async getSeriesMeta(asin: string): Promise<SeriesMetadata> {
+    return this.request<SeriesMetadata>(`/series/${encodeURIComponent(asin)}`)
+  }
+
+  async setSeriesComplete(asin: string, isComplete: boolean): Promise<SeriesMetadata> {
+    return this.request<SeriesMetadata>(`/series/${encodeURIComponent(asin)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isComplete }),
+    })
+  }
+
+  async refreshSeriesMeta(asin: string, region: string = 'us'): Promise<SeriesMetadata> {
+    const params = new URLSearchParams({ region })
+    return this.request<SeriesMetadata>(`/series/${encodeURIComponent(asin)}/refresh?${params}`, {
+      method: 'POST',
+    })
   }
 
   async searchAudimetaByTitleAndAuthor(

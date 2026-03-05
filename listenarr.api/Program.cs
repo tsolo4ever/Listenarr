@@ -312,6 +312,8 @@ builder.Services.AddHttpClient<AudimetaService>()
         AutomaticDecompression = System.Net.DecompressionMethods.All
     });
 
+builder.Services.AddScoped<Listenarr.Api.Services.ISeriesMetadataService, Listenarr.Api.Services.SeriesMetadataService>();
+
 // Add HTTP client for Audnexus service
 builder.Services.AddHttpClient<IAudnexusService, AudnexusService>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()

@@ -802,3 +802,14 @@ export interface UnmatchedFilesResponse {
   error?: string
   items: UnmatchedFileItem[]
 }
+
+export interface SeriesMetadata {
+  seriesAsin: string
+  name: string
+  description?: string
+  totalBooks?: number
+  isComplete: boolean
+  isCompleteInferred?: boolean
+  newestBookDate?: string
+  lastFetchedAt?: string
+}

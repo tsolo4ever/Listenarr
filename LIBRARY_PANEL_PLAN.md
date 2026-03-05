@@ -1,89 +1,95 @@
-# Plan: Library Management Panel
+# Plan: Series-Aware Library Management
 
 ## Problem
 
-The current track/untrack (Monitored) system operates per-book. Since audiobooks exist in series,
-users have to monitor/unmonitor each book individually. There is no way to say "follow this series"
-and have all books in it monitored together.
+The left nav already has Books / Authors / Series tabs, and the Series view shows collection cards.
+But there are no management features on top of it — you can't monitor/unmonitor a whole series,
+see at a glance how many books in a series are missing, or take any bulk action from the series card.
 
-The library view also has no sidebar — filtering and bulk actions are scattered across toolbar
-dropdowns and modals.
-
----
-
-## Goal
-
-A collapsible left panel in the library view that surfaces series-aware library management:
-- Browse library by Series or Author in the panel
-- See series health at a glance (N books, N monitored, N missing)
-- Monitor/unmonitor an entire series in one click
-- Bulk actions scoped to a series without having to select books manually
+Users have to go into each book individually to toggle monitored status even when they want to
+apply the same setting to everything in a series.
 
 ---
 
 ## Current State
 
-- `Monitored` — boolean field on `Audiobook`, controls automatic searching
-- `Series` — plain string on `Audiobook`, no separate entity
-- Series grouping exists in the grid view (Group By → Series) but has no management surface
-- `BulkEditModal` exists and already supports setting monitored across selected IDs
-- `CollectionView.vue` shows all books in a series when you click into one
+- Series tab exists in left nav → shows grid of series collection cards
+- Each card shows cover art mosaic + series name + book count
+- Clicking a card navigates to `CollectionView` (filtered list of books in that series)
+- `CollectionView` has bulk edit/delete but you have to select books manually first
+- `Monitored` is a per-book boolean — no series-level concept exists
+- `BulkEditModal` already supports setting monitored across a list of IDs
 
 ---
 
-## Proposed UI
+## Proposed Changes
+
+### 1. Series Card — add health indicators
+
+Each series card in the grid gets a small status row beneath the title:
 
 ```
-┌──────────────────────┬────────────────────────────────────┐
-│  PANEL               │  LIBRARY GRID (existing)           │
-│                      │                                    │
-│  [Series] [Authors]  │  ┌──────┐ ┌──────┐ ┌──────┐      │
-│                      │  │      │ │      │ │      │      │
-│  ▶ Stormlight (8)    │  └──────┘ └──────┘ └──────┘      │
-│    ● 6 monitored     │                                    │
-│    ○ 2 unmonitored   │  ┌──────┐ ┌──────┐ ┌──────┐      │
-│    ! 1 missing       │  │      │ │      │ │      │      │
-│    [Monitor All]     │  └──────┘ └──────┘ └──────┘      │
-│                      │                                    │
-│  ▶ Kingkiller (3)    │                                    │
-│    ● 3 monitored     │                                    │
-│    ! 2 missing       │                                    │
-│    [Monitor All]     │                                    │
-│                      │                                    │
-│  ▶ Standalone (12)   │                                    │
-│                      │                                    │
-│  [← Collapse]        │                                    │
-└──────────────────────┴────────────────────────────────────┘
+Divine Apostasy
+1 book  •  ✓ monitored  •  ⚠ 0 missing
 ```
 
-- Clicking a series in the panel filters the grid to that series
-- "Monitor All" / "Unmonitor All" uses the existing bulk-update API endpoint
-- Standalone books (no series) grouped under a "Standalone" bucket
-- Panel is collapsible — remembers state in localStorage
+Or with colour-coded badges when things need attention:
+```
+The Stormlight Archive
+8 books  •  6 monitored  •  ⚠ 2 missing
+```
+
+### 2. Series Card — quick-action button
+
+A "Monitor All" / "Unmonitor All" button on hover (or always visible) that calls the existing
+`POST /library/bulk-update` endpoint with the IDs of all books in that series.
+
+### 3. CollectionView — series header actions
+
+When viewing a series collection, add to the existing toolbar:
+- "Monitor All" / "Unmonitor All" button (acts on all books in the series, no selection needed)
+- Series health summary line: "8 books — 6 monitored — 2 missing — 1 downloading"
 
 ---
 
-## What Needs Clarifying (open questions)
+## What Needs a New Backend Endpoint
 
-1. Should clicking a series row in the panel filter the grid, or navigate to CollectionView?
-2. Should the panel show Authors tab too, or just Series for now?
-3. Does "Monitor All" apply to books not yet in the library (i.e., auto-add missing series books)?
-   — If yes, needs a separate "wanted series" concept (out of scope for v1)
-   — For v1: only affects books already in the library
-4. Panel width preference — fixed or resizable?
+The series cards need health data (monitored count, missing count) without fetching all book
+details. A lightweight summary endpoint makes sense:
+
+```
+GET /api/v1/library/series-summary
+```
+
+Returns:
+```json
+[
+  {
+    "series": "The Stormlight Archive",
+    "totalBooks": 8,
+    "monitoredBooks": 6,
+    "missingBooks": 2,
+    "ids": [1, 2, 3, 4, 5, 6, 7, 8]
+  }
+]
+```
+
+The `ids` array is what gets passed to `bulk-update` when Monitor All is clicked — no extra
+endpoint needed for the action itself.
 
 ---
 
-## Files That Would Be Touched
+## Files to Touch
 
 | File | Change |
 |---|---|
-| `fe/src/views/library/AudiobooksView.vue` | Add panel slot, wire filter state |
-| `fe/src/components/library/SeriesPanel.vue` | **New** — the panel component |
-| `fe/src/stores/library.ts` | Add series summary computed / panel state |
-| `listenarr.api/Controllers/LibraryController.cs` | Possibly a `/series-summary` endpoint |
+| `listenarr.api/Controllers/LibraryController.cs` | Add `GET /library/series-summary` endpoint |
+| `fe/src/services/api.ts` | Add `getSeriesSummary()` call |
+| `fe/src/types/index.ts` | Add `SeriesSummary` interface |
+| `fe/src/views/library/AudiobooksView.vue` | Pass summary data to collection cards |
+| `fe/src/views/library/CollectionView.vue` | Add Monitor All / series health bar to toolbar |
 
-**Total: ~4 files (1 new)**
+**Total: 5 files (0 new)**
 
 ---
 
@@ -91,5 +97,5 @@ A collapsible left panel in the library view that surfaces series-aware library 
 
 - Auto-adding missing books in a series from Audible
 - Series as a first-class DB entity
-- Author panel tab (add later)
-- Resizable panel
+- Author tab getting the same treatment (follow-up)
+- Per-series quality profile or root folder override

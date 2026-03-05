@@ -185,34 +185,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set image name
         id: set-tags
         run: |
-          # Use repository owner as namespace for Docker Hub
-          echo "DOCKER_IMAGE=docker.io/therobbiedavis/listenarr" >> $GITHUB_OUTPUT
-          # Publish GHCR images under the same owner namespace
-          echo "GHCR_IMAGE=ghcr.io/listenarrs/listenarr" >> $GITHUB_OUTPUT
+          echo "DOCKER_IMAGE=docker.io/oatiets/listenarr" >> $GITHUB_OUTPUT
 
       - name: Compute image tags
         id: compute-tags
         run: |
           VERSION="${{ steps.resolve-version.outputs.VERSION }}"
-          GHCR="${{ steps.set-tags.outputs.GHCR_IMAGE }}"
           DOCKER="${{ steps.set-tags.outputs.DOCKER_IMAGE }}"
-          TAGS="${GHCR}:canary
-          ${GHCR}:canary-${VERSION}"
-          if [ "${{ steps.dockerhub.outputs.available }}" = "true" ]; then
-            TAGS="${TAGS}
-          ${DOCKER}:canary
+          TAGS="${DOCKER}:canary
           ${DOCKER}:canary-${VERSION}"
-          fi
           echo "TAGS<<EOF" >> $GITHUB_OUTPUT
           echo "$TAGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT

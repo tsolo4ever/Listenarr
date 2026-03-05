@@ -36,6 +36,7 @@ namespace Listenarr.Api.Models
         public string? PublishedDate { get; set; }
         public string? Series { get; set; }
         public string? SeriesNumber { get; set; }
+        public string? SeriesAsin { get; set; }
         public bool? Monitored { get; set; }
         public string? FilePath { get; set; }
         public long? FileSize { get; set; }

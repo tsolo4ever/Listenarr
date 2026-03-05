@@ -381,6 +381,7 @@ namespace Listenarr.Api.Controllers
                 PublishedDate = metadata.PublishedDate, // Store full date from metadata for calendar/timeline features
                 Series = metadata.Series,
                 SeriesNumber = ToStringOrFirst(metadata.SeriesNumber),
+                SeriesAsin = metadata.SeriesAsin,
                 Description = ToStringOrFirst(metadata.Description),
                 Publisher = ToStringOrFirst(metadata.Publisher),
                 Genres = (metadata.Genres != null && metadata.Genres.Any()) ? metadata.Genres : null,
@@ -568,6 +569,7 @@ namespace Listenarr.Api.Controllers
                     Authors = request.Metadata.Authors,
                     Series = request.Metadata.Series,
                     SeriesNumber = request.Metadata.SeriesNumber,
+                    SeriesAsin = request.Metadata.SeriesAsin,
                     PublishYear = request.Metadata.PublishYear
                 };
 
@@ -624,6 +626,7 @@ namespace Listenarr.Api.Controllers
                 publishedDate = a.PublishedDate,
                 series = a.Series,
                 seriesNumber = a.SeriesNumber,
+                seriesAsin = a.SeriesAsin,
                 description = a.Description,
                 genres = a.Genres,
                 tags = a.Tags,
@@ -730,6 +733,7 @@ namespace Listenarr.Api.Controllers
                 authorAsins = updated.AuthorAsins,
                 series = updated.Series,
                 seriesNumber = updated.SeriesNumber,
+                seriesAsin = updated.SeriesAsin,
                 publishedDate = updated.PublishedDate,
                 tags = updated.Tags,
                 files = updated.Files?.Select(f => new
@@ -1448,6 +1452,7 @@ namespace Listenarr.Api.Controllers
             if (updatedAudiobook.PublishYear != null) existingAudiobook.PublishYear = updatedAudiobook.PublishYear;
             if (updatedAudiobook.Series != null) existingAudiobook.Series = updatedAudiobook.Series;
             if (updatedAudiobook.SeriesNumber != null) existingAudiobook.SeriesNumber = updatedAudiobook.SeriesNumber;
+            if (updatedAudiobook.SeriesAsin != null) existingAudiobook.SeriesAsin = updatedAudiobook.SeriesAsin;
             if (updatedAudiobook.Description != null) existingAudiobook.Description = updatedAudiobook.Description;
             if (updatedAudiobook.Genres != null) existingAudiobook.Genres = updatedAudiobook.Genres;
             if (updatedAudiobook.Tags != null) existingAudiobook.Tags = updatedAudiobook.Tags;
@@ -3654,6 +3659,7 @@ namespace Listenarr.Api.Controllers
             if (!string.IsNullOrWhiteSpace(metadata.PublishedDate)) audiobook.PublishedDate = metadata.PublishedDate;
             if (!string.IsNullOrWhiteSpace(metadata.Series)) audiobook.Series = metadata.Series;
             if (!string.IsNullOrWhiteSpace(metadata.SeriesNumber)) audiobook.SeriesNumber = metadata.SeriesNumber;
+            if (!string.IsNullOrWhiteSpace(metadata.SeriesAsin)) audiobook.SeriesAsin = metadata.SeriesAsin;
             if (!string.IsNullOrWhiteSpace(metadata.Description)) audiobook.Description = metadata.Description;
             if (!string.IsNullOrWhiteSpace(metadata.Publisher)) audiobook.Publisher = metadata.Publisher;
             if (!string.IsNullOrWhiteSpace(metadata.Language)) audiobook.Language = metadata.Language;

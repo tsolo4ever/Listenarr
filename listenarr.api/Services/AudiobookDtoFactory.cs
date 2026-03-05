@@ -47,6 +47,7 @@ namespace Listenarr.Api.Services
                 PublishedDate = audiobook.PublishedDate,
                 Series = audiobook.Series,
                 SeriesNumber = audiobook.SeriesNumber,
+                SeriesAsin = audiobook.SeriesAsin,
                 Monitored = audiobook.Monitored,
                 FilePath = audiobook.FilePath,
                 FileSize = audiobook.FileSize,

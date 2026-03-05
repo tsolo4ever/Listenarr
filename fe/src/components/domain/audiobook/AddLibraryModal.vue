@@ -439,6 +439,7 @@ const mapAudimetaToAudible = (
     series: firstSeries?.name || props.book?.series,
     seriesNumber:
       firstSeries?.position !== undefined ? String(firstSeries.position) : (props.book?.seriesNumber && props.book.seriesNumber !== 'null' ? props.book.seriesNumber : undefined),
+    seriesAsin: firstSeries?.asin || props.book?.seriesAsin,
     abridged:
       typeof audimeta?.bookFormat === 'string'
         ? audimeta.bookFormat.toLowerCase().includes('abridged')

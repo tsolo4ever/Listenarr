@@ -345,6 +345,32 @@ Listenarr/
 
 ## Configuration
 
+### Root Folder Setup
+
+> [!IMPORTANT]
+> **Use a dedicated, empty folder as your library root.** Listenarr will reorganize and rename files inside this folder according to your naming pattern. Pointing it at a folder that already contains your audiobook collection will cause Listenarr to move and rename everything on first use.
+
+**Recommended layout:**
+
+```
+/audiobooks      ← library root (starts empty, Listenarr manages this)
+/downloads       ← download client output (separate from library)
+```
+
+Add both as volumes when using Docker:
+
+```yaml
+volumes:
+  - /path/to/audiobooks:/audiobooks   # library root
+  - /path/to/downloads:/downloads     # download client output
+```
+
+Then in Listenarr:
+1. **Settings → Root Folders** — add `/audiobooks` as your library root
+2. **Settings → Download Clients** — point your client's save path to `/downloads`
+
+This separation keeps your download staging area isolated from your organized library and prevents accidental reorganization of files you haven't imported yet.
+
 ### API Sources
 
 Configure your search APIs in the Settings page:

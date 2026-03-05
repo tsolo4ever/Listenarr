@@ -26,6 +26,15 @@
 
           <!-- Folder browser modal (opens in a centered modal) -->
           <FolderBrowserModal v-model:visible="showBrowser" v-model:modelValue="form.path" :show-input="false" @close="closeBrowser" />
+
+          <div class="path-tip">
+            <PhInfo :size="14" class="path-tip-icon" />
+            <span>
+              <strong>Best practice:</strong> Use a dedicated empty folder as your library root (e.g. <code>/audiobooks</code>).
+              Do <em>not</em> point it at a folder already containing your files — Listenarr will reorganize them on first use.
+              Keep your download client output in a separate directory (e.g. <code>/downloads</code>).
+            </span>
+          </div>
         </FormRow>
 
         <CheckboxCard v-model="form.isDefault" title="Set as default root folder" />
@@ -57,7 +66,7 @@ import MoveAudiobookModal from '@/components/feedback/MoveAudiobookModal.vue'
 import FormSection from './FormSection.vue'
 import FormRow from '@/components/settings/FormRow.vue'
 import CheckboxCard from '@/components/settings/CheckboxCard.vue'
-import { PhFolder } from '@phosphor-icons/vue'
+import { PhFolder, PhInfo } from '@phosphor-icons/vue'
 import { useRootFoldersStore } from '@/stores/rootFolders'
 import { useToast } from '@/services/toastService'
 import type { RootFolder } from '@/types'
@@ -442,5 +451,37 @@ async function confirmChange(moveFiles: boolean) {
 
 .path-input-row .form-input {
   flex: 1;
+}
+
+.path-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(74, 144, 226, 0.08);
+  border: 1px solid rgba(74, 144, 226, 0.2);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #adb5bd;
+  line-height: 1.45;
+}
+
+.path-tip-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #4a90e2;
+}
+
+.path-tip strong {
+  color: #c9d1d9;
+}
+
+.path-tip code {
+  background: rgba(255, 255, 255, 0.07);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.9em;
 }
 </style>

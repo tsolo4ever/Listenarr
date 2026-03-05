@@ -341,8 +341,9 @@ namespace Listenarr.Api.Services
                 return EmptySentinel;
             });
 
-            // Cleanup: remove empty sentinel inside any brackets (e.g. "(__EMPTY_VAR__)" -> "")
-            result = Regex.Replace(result, @"[\(\[\{]\s*" + EmptySentinel + @"\s*[\)\]\}]", string.Empty);
+            // Cleanup: remove bracket groups that contain ONLY empty sentinels (e.g. "[__EMPTY_VAR__]" or "[__EMPTY_VAR__ __EMPTY_VAR__]" -> "")
+            // Handles the common case where multiple series-related variables (e.g. {Series} {SeriesNumber}) are all empty
+            result = Regex.Replace(result, @"[\(\[\{]\s*(?:" + EmptySentinel + @"\s*)+[\)\]\}]", string.Empty);
 
             // Remove common separators adjacent to the sentinel (e.g. " - __EMPTY_VAR__" or "__EMPTY_VAR__ - ")
             result = Regex.Replace(result, @"\s*[-–—:_]\s*" + EmptySentinel, string.Empty);
@@ -353,6 +354,10 @@ namespace Listenarr.Api.Services
 
             // Finally remove any remaining sentinels
             result = result.Replace(EmptySentinel, string.Empty);
+
+            // Post-sentinel cleanup: remove bracket groups that are now empty or contain only slashes/whitespace
+            // (catches cases where sentinel→slash conversion left "[/ /]" or "[/]" behind)
+            result = Regex.Replace(result, @"\[[\s/\\]*\]|\([\s/\\]*\)", string.Empty);
 
             // Clean up multiple consecutive slashes or spaces
             result = Regex.Replace(result, @"[\\/]{2,}", "/");

@@ -10,19 +10,26 @@
 
     <template #default>
       <ModalBody>
-        <!-- Phase 1: Scanning -->
+        <!-- Scanning in progress -->
         <div v-if="phase === 'scanning'" class="scan-status">
           <PhSpinner class="ph-spin scan-spinner" />
           <p>Scanning <strong>{{ rootFolderName }}</strong> for audio files not in your library…</p>
         </div>
 
-        <!-- Phase 1 error -->
+        <!-- Scan error -->
         <div v-else-if="phase === 'error'" class="scan-status error">
           <PhWarning class="error-icon" />
           <p>{{ errorMessage }}</p>
         </div>
 
-        <!-- Phase 2: Results -->
+        <!-- No scan yet -->
+        <div v-else-if="phase === 'empty'" class="empty-state">
+          <PhMagnifyingGlass class="empty-icon" />
+          <h4>No scan results yet</h4>
+          <p>Click <strong>Scan</strong> to search <strong>{{ rootFolderName }}</strong> for audio files not in your library.</p>
+        </div>
+
+        <!-- Results -->
         <div v-else-if="phase === 'results'">
           <div v-if="items.length === 0" class="empty-state">
             <PhCheckCircle class="empty-icon" />
@@ -33,6 +40,7 @@
           <div v-else>
             <p class="results-summary">
               Found <strong>{{ items.length }}</strong> folder{{ items.length !== 1 ? 's' : '' }} with audio files not in your library.
+              <span v-if="lastScannedAt" class="last-scanned">Last scanned {{ timeAgo(lastScannedAt) }}</span>
             </p>
 
             <div class="results-table-wrapper">
@@ -109,6 +117,15 @@
           <PhRocketLaunch />
           Add All (ASIN match)
         </button>
+        <button
+          class="btn btn-secondary"
+          :disabled="phase === 'scanning' || bulkAdding"
+          @click="startScan"
+          title="Scan for unmatched files"
+        >
+          <PhArrowsClockwise />
+          Scan
+        </button>
         <button class="btn" @click="close" :disabled="bulkAdding">Close</button>
       </ModalFooter>
     </template>
@@ -138,6 +155,7 @@ import {
   PhCheckCircle,
   PhX,
   PhRocketLaunch,
+  PhArrowsClockwise,
 } from '@phosphor-icons/vue'
 import { apiService } from '@/services/api'
 import { signalRService } from '@/services/signalr'
@@ -158,73 +176,98 @@ const emit = defineEmits<Emits>()
 
 const toast = useToast()
 
-type Phase = 'scanning' | 'results' | 'error'
+type Phase = 'empty' | 'scanning' | 'results' | 'error'
 
-const phase = ref<Phase>('scanning')
+const phase = ref<Phase>('empty')
 const items = ref<UnmatchedFileItem[]>([])
 const errorMessage = ref('')
+const lastScannedAt = ref<string | null>(null)
 const addingItem = ref<UnmatchedFileItem | null>(null)
 const bulkAdding = ref(false)
 const bulkDone = ref(0)
 const bulkTotal = ref(0)
 
 const asinCount = computed(() => items.value.filter((i) => i.asin).length)
-
 const rootFolderName = computed(() => props.rootFolder?.name || props.rootFolder?.path || 'folder')
 
 let jobId = ''
 let offSignalR: (() => void) | null = null
 
+// On open: load cached results — no auto-scan
 watch(
   () => props.isOpen,
   async (open) => {
     if (!open) return
     if (!props.rootFolder?.id) return
 
-    phase.value = 'scanning'
-    items.value = []
-    errorMessage.value = ''
-    jobId = ''
-
-    // Subscribe to SignalR before triggering the scan
-    offSignalR = signalRService.onUnmatchedScanComplete(async (payload) => {
-      if (payload.jobId !== jobId) return
-      if (payload.error) {
-        phase.value = 'error'
-        errorMessage.value = payload.error
-        return
-      }
-      try {
-        const response = await apiService.getUnmatchedResults(payload.jobId)
-        items.value = response.items
-        phase.value = 'results'
-      } catch (e) {
-        phase.value = 'error'
-        errorMessage.value = (e as Error)?.message || 'Failed to fetch results'
-      }
-    })
-
     try {
-      const result = await apiService.scanUnmatchedFiles(props.rootFolder.id)
-      jobId = result.jobId
-      // Poll once immediately — handles fast scans that complete before SignalR fires
-      const check = await apiService.getUnmatchedResults(jobId)
-      if (check.status === 'Completed') {
-        items.value = check.items
+      const saved = await apiService.getSavedUnmatchedFiles(props.rootFolder.id)
+      if (saved.items.length > 0) {
+        items.value = saved.items
+        lastScannedAt.value = saved.lastScannedAt ?? null
         phase.value = 'results'
-      } else if (check.status === 'Failed') {
-        phase.value = 'error'
-        errorMessage.value = check.error || 'Scan failed'
+      } else {
+        items.value = []
+        lastScannedAt.value = null
+        phase.value = 'empty'
       }
-      // Otherwise SignalR will deliver the completion event
-    } catch (e) {
-      phase.value = 'error'
-      errorMessage.value = (e as Error)?.message || 'Failed to start scan'
-      offSignalR?.()
-      offSignalR = null
+    } catch {
+      items.value = []
+      phase.value = 'empty'
     }
   },
 )
+
+// Explicit scan button handler
+async function startScan() {
+  if (!props.rootFolder?.id) return
+
+  phase.value = 'scanning'
+  items.value = []
+  errorMessage.value = ''
+  jobId = ''
+
+  // Subscribe to SignalR before triggering the scan
+  offSignalR?.()
+  offSignalR = signalRService.onUnmatchedScanComplete(async (payload) => {
+    if (payload.jobId !== jobId) return
+    if (payload.error) {
+      phase.value = 'error'
+      errorMessage.value = payload.error
+      return
+    }
+    try {
+      const response = await apiService.getUnmatchedResults(payload.jobId)
+      items.value = response.items
+      lastScannedAt.value = new Date().toISOString()
+      phase.value = 'results'
+    } catch (e) {
+      phase.value = 'error'
+      errorMessage.value = (e as Error)?.message || 'Failed to fetch results'
+    }
+  })
+
+  try {
+    const result = await apiService.scanUnmatchedFiles(props.rootFolder.id)
+    jobId = result.jobId
+    // Poll once immediately — handles fast scans that complete before SignalR fires
+    const check = await apiService.getUnmatchedResults(jobId)
+    if (check.status === 'Completed') {
+      items.value = check.items
+      lastScannedAt.value = new Date().toISOString()
+      phase.value = 'results'
+    } else if (check.status === 'Failed') {
+      phase.value = 'error'
+      errorMessage.value = check.error || 'Scan failed'
+    }
+    // Otherwise SignalR will deliver the completion event
+  } catch (e) {
+    phase.value = 'error'
+    errorMessage.value = (e as Error)?.message || 'Failed to start scan'
+    offSignalR?.()
+    offSignalR = null
+  }
+}
 
 onUnmounted(() => {
   offSignalR?.()
@@ -234,6 +277,16 @@ function close() {
   offSignalR?.()
   offSignalR = null
   emit('close')
+}
+
+function timeAgo(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
 }
 
 // Build a minimal AudibleBookMetadata from path-parsed data to pre-fill AddLibraryModal
@@ -435,6 +488,12 @@ async function addAllWithAsin() {
   margin: 0 0 1rem;
   color: #adb5bd;
   font-size: 0.95rem;
+}
+
+.last-scanned {
+  margin-left: 0.5rem;
+  color: #868e96;
+  font-size: 0.85rem;
 }
 
 .results-table-wrapper {

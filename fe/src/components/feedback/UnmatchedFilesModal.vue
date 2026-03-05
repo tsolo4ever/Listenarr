@@ -318,7 +318,7 @@ function mapToAudible(meta: AudimetaPayload, fallback: UnmatchedFileItem): Audib
     publishYear: year || undefined,
     description: meta.description || fallback.description,
     imageUrl: meta.imageUrl,
-    durationSeconds: typeof meta.lengthMinutes === 'number' ? meta.lengthMinutes * 60 : undefined,
+    runtime: typeof meta.lengthMinutes === 'number' ? meta.lengthMinutes * 60 : undefined,
     language: meta.language,
     genres: (meta.genres || []).map((g) => g?.name).filter(Boolean) as string[],
   }

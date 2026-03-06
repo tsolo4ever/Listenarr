@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text.RegularExpressions;
 using Listenarr.Api.Services;
+using Listenarr.Api.Services.Search;
 using Listenarr.Domain.Models;
 using System.Text.Json.Serialization;
 using System.ComponentModel.DataAnnotations;
@@ -18,6 +19,8 @@ public class ManualImportController : ControllerBase
     private readonly IConfigurationService _configService;
     private readonly IScanQueueService _scanQueueService;
     private readonly IRootFolderService _rootFolderService;
+    private readonly IAudiobookMetadataService? _audiobookMetadataService;
+    private readonly MetadataConverters? _metadataConverters;
 
     public ManualImportController(
         ILogger<ManualImportController> logger,
@@ -26,7 +29,9 @@ public class ManualImportController : ControllerBase
         IFileNamingService fileNamingService,
         IConfigurationService configService,
         IScanQueueService scanQueueService,
-        IRootFolderService rootFolderService)
+        IRootFolderService rootFolderService,
+        IAudiobookMetadataService? audiobookMetadataService = null,
+        MetadataConverters? metadataConverters = null)
     {
         _logger = logger;
         _audiobookRepository = audiobookRepository;
@@ -35,6 +40,8 @@ public class ManualImportController : ControllerBase
         _configService = configService;
         _scanQueueService = scanQueueService;
         _rootFolderService = rootFolderService;
+        _audiobookMetadataService = audiobookMetadataService;
+        _metadataConverters = metadataConverters;
     }
 
     [HttpGet("preview")]
@@ -210,6 +217,38 @@ public class ManualImportController : ControllerBase
                     Error = "Failed to extract metadata from file",
                     FilePath = item.FullPath
                 };
+            }
+
+            // Tier 1: if audiobook lacks metadata and an ASIN is available (from DB or embedded tag),
+            // fetch from Audimeta and apply — ensures correct naming even for files with empty tags.
+            var resolvedAsin = !string.IsNullOrWhiteSpace(audiobook.Asin) ? audiobook.Asin
+                : !string.IsNullOrWhiteSpace(metadata?.Asin) ? metadata.Asin
+                : null;
+
+            if (resolvedAsin != null && _audiobookMetadataService != null && _metadataConverters != null
+                && (string.IsNullOrWhiteSpace(audiobook.Title) || string.IsNullOrWhiteSpace(audiobook.Authors?.FirstOrDefault())))
+            {
+                try
+                {
+                    var rawResult = await _audiobookMetadataService.GetMetadataAsync(resolvedAsin, cache: true);
+                    if (rawResult is Listenarr.Api.Services.AudimetaBookResponse audimeta)
+                    {
+                        var converted = _metadataConverters.ConvertAudimetaToMetadata(audimeta, resolvedAsin, "Audimeta");
+                        if (!string.IsNullOrWhiteSpace(converted.Title)) audiobook.Title = converted.Title;
+                        if (!string.IsNullOrWhiteSpace(converted.Series)) audiobook.Series = converted.Series;
+                        if (!string.IsNullOrWhiteSpace(converted.SeriesNumber)) audiobook.SeriesNumber = converted.SeriesNumber;
+                        if (!string.IsNullOrWhiteSpace(converted.PublishYear)) audiobook.PublishYear = converted.PublishYear;
+                        if (!string.IsNullOrWhiteSpace(converted.Asin)) audiobook.Asin = converted.Asin;
+                        var authors = converted.Authors?.Where(a => !string.IsNullOrWhiteSpace(a)).ToList();
+                        if (authors?.Count > 0) audiobook.Authors = authors;
+                        await _audiobookRepository.UpdateAsync(audiobook);
+                        _logger.LogInformation("Tier 1 metadata fetch updated audiobook {Id} from ASIN {Asin}", audiobook.Id, resolvedAsin);
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException)
+                {
+                    _logger.LogWarning(ex, "Tier 1 metadata fetch failed for audiobook {Id} ASIN {Asin} — import continues", audiobook.Id, resolvedAsin);
+                }
             }
 
             // Generate destination path using appropriate naming pattern

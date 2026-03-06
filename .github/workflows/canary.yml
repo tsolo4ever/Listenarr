@@ -98,7 +98,7 @@ jobs:
 
       - name: Create Pull Request for version bump
         id: create_pr
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "[skip ci] Bump version to ${{ steps.resolve-version.outputs.VERSION }}"

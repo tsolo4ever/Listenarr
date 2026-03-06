@@ -18,6 +18,8 @@
 
 using Microsoft.AspNetCore.Mvc;
 using System.Runtime.InteropServices;
+using Microsoft.EntityFrameworkCore;
+using Listenarr.Infrastructure.Models;
 
 namespace Listenarr.Api.Controllers;
 
@@ -26,10 +28,12 @@ namespace Listenarr.Api.Controllers;
 public class FileSystemController : ControllerBase
 {
     private readonly ILogger<FileSystemController> _logger;
+    private readonly ListenArrDbContext _dbContext;
 
-    public FileSystemController(ILogger<FileSystemController> logger)
+    public FileSystemController(ILogger<FileSystemController> logger, ListenArrDbContext dbContext)
     {
         _logger = logger;
+        _dbContext = dbContext;
     }
 
     [HttpGet("browse")]
@@ -224,6 +228,60 @@ public class FileSystemController : ControllerBase
             ParentPath = null,
             Items = items
         };
+    }
+
+    [HttpDelete("folder")]
+    public async Task<IActionResult> DeleteSourceFolder([FromQuery] string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return BadRequest("Path is required.");
+
+        var rootFolders = await _dbContext.RootFolders.ToListAsync();
+        var containingRoot = rootFolders
+            .FirstOrDefault(rf => path.StartsWith(rf.Path, StringComparison.OrdinalIgnoreCase));
+
+        if (containingRoot == null)
+            return BadRequest("Path is not within a known root folder.");
+
+        // Don't delete a root folder itself
+        if (string.Equals(path.TrimEnd('/', '\\'), containingRoot.Path.TrimEnd('/', '\\'),
+                StringComparison.OrdinalIgnoreCase))
+            return BadRequest("Cannot delete a root folder.");
+
+        if (!Directory.Exists(path))
+            return Ok(new { deleted = false, reason = "Folder does not exist." });
+
+        // Refuse if audio files still present
+        var audioExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { ".mp3", ".m4b", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma", ".mp4" };
+
+        var hasAudio = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)
+            .Any(f => audioExtensions.Contains(Path.GetExtension(f)));
+
+        if (hasAudio)
+            return Ok(new { deleted = false, reason = "Audio files still present." });
+
+        // Delete folder + all contents (covers, desc.txt, reader.txt, etc.)
+        Directory.Delete(path, recursive: true);
+        _logger.LogInformation("Deleted source folder after import: {Path}", path);
+
+        // Walk up, delete empty parent dirs — stop at root folder boundary
+        var current = Directory.GetParent(path)?.FullName;
+        var rootNorm = containingRoot.Path.TrimEnd('/', '\\');
+        while (!string.IsNullOrEmpty(current) &&
+               !string.Equals(current.TrimEnd('/', '\\'), rootNorm, StringComparison.OrdinalIgnoreCase))
+        {
+            if (Directory.Exists(current) && !Directory.EnumerateFileSystemEntries(current).Any())
+            {
+                Directory.Delete(current);
+                _logger.LogInformation("Deleted empty parent folder: {Path}", current);
+            }
+            else
+                break;
+            current = Directory.GetParent(current)?.FullName;
+        }
+
+        return Ok(new { deleted = true });
     }
 
     [HttpGet("check-volume")]

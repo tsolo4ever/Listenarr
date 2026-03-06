@@ -15,6 +15,19 @@
         </select>
       </label>
 
+      <label
+        class="cleanup-label"
+        :class="store.inputMode !== 'move' ? 'cleanup-disabled' : ''"
+        title="Deletes the source folder (including cover art and description files) after the audio file is moved. Only available in Move mode."
+      >
+        <input
+          type="checkbox"
+          v-model="store.cleanupSourceFolder"
+          :disabled="store.inputMode !== 'move'"
+        />
+        Delete source folder
+      </label>
+
       <div v-if="store.metadataFetchCount > 100" class="rate-limit-warning">
         <PhWarning :size="14" />
         {{ store.metadataFetchCount }} API lookups — rate limit: 150/window
@@ -142,6 +155,26 @@ async function handleImport() {
   font-size: 0.82rem;
   padding: 0.25rem 0.5rem;
   cursor: pointer;
+}
+
+.cleanup-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: #aaa;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cleanup-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cleanup-disabled input {
+  cursor: not-allowed;
 }
 
 .rate-limit-warning {

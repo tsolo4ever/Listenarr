@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { apiService } from '@/services/api'
 import { signalRService } from '@/services/signalr'
 import { logger } from '@/utils/logger'
@@ -131,6 +131,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
   const scanError = ref<string | null>(null)
   const lastScannedAt = ref<string | null>(null)
   const inputMode = ref<'move' | 'hardlink/copy'>('move')
+  const cleanupSourceFolder = ref(true)
   const metadataFetchCount = ref(0)
   const importErrors = ref<string[]>([])
 
@@ -425,6 +426,14 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
           inputMode: inputMode.value,
           items: [{ fullPath: item.fullPath, matchedAudiobookId: audiobookId }],
         })
+        // Optionally delete the source folder after moving the audio file
+        if (cleanupSourceFolder.value && inputMode.value === 'move') {
+          try {
+            await apiService.cleanupSourceFolder(item.folderPath)
+          } catch {
+            // Non-fatal — don't fail the import over cleanup errors
+          }
+        }
         // Remove imported item from store
         const updated = { ...items.value }
         delete updated[item.id]
@@ -440,6 +449,11 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     return { imported, errors: importErrors.value }
   }
 
+  // Auto-disable cleanup when not in move mode
+  watch(inputMode, (mode) => {
+    if (mode !== 'move') cleanupSourceFolder.value = false
+  })
+
   return {
     // State
     items,
@@ -450,6 +464,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     scanError,
     lastScannedAt,
     inputMode,
+    cleanupSourceFolder,
     metadataFetchCount,
     importErrors,
     // Computed

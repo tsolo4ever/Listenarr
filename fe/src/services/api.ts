@@ -1159,6 +1159,13 @@ class ApiService {
     )
   }
 
+  async cleanupSourceFolder(path: string): Promise<{ deleted: boolean; reason?: string }> {
+    return this.request<{ deleted: boolean; reason?: string }>(
+      `/filesystem/folder?path=${encodeURIComponent(path)}`,
+      { method: 'DELETE' },
+    )
+  }
+
   // Manual import preview / start
   async previewManualImport(path: string): Promise<ManualImportPreviewResponse> {
     const params = path ? `?path=${encodeURIComponent(path)}` : ''

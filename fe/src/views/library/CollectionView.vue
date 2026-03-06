@@ -598,9 +598,13 @@ const editAudiobook = (audiobook: Audiobook) => {
 }
 
 const deleteAudiobook = async (audiobook: Audiobook) => {
-  if (confirm(`Are you sure you want to delete "${audiobook.title}"?`)) {
-    await libraryStore.removeFromLibrary(audiobook.id)
-  }
+  const ok = await showConfirm(
+    `Are you sure you want to delete "${audiobook.title}"? This action cannot be undone.`,
+    'Confirm Deletion',
+    { danger: true, confirmText: 'Delete', cancelText: 'Cancel' },
+  )
+  if (!ok) return
+  await libraryStore.removeFromLibrary(audiobook.id)
 }
 
 const onAudiobookSaved = () => {

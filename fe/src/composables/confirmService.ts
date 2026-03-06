@@ -9,6 +9,9 @@ const message = ref('')
 const confirmText = ref('Confirm')
 const cancelText = ref('Cancel')
 const danger = ref(false)
+const checkboxLabel = ref('')
+const checkboxWarning = ref('')
+const checkboxChecked = ref(false)
 
 let resolver: Resolver | null = null
 
@@ -28,16 +31,33 @@ export function showConfirm(
   })
 }
 
-export function confirm() {
+export async function showDeleteConfirm(
+  msg: string,
+  t?: string,
+): Promise<{ confirmed: boolean; deleteFiles: boolean }> {
+  checkboxLabel.value = 'Also delete audio files from disk'
+  checkboxWarning.value = 'The physical audio files will be permanently deleted from your file system.'
+  checkboxChecked.value = false
+  const ok = await showConfirm(msg, t, { danger: true, confirmText: 'Delete', cancelText: 'Cancel' })
+  return { confirmed: ok, deleteFiles: checkboxChecked.value }
+}
+
+export function confirm(checked?: boolean) {
+  checkboxChecked.value = checked ?? false
   if (resolver) resolver(true)
   resolver = null
   visible.value = false
+  checkboxLabel.value = ''
+  checkboxWarning.value = ''
 }
 
 export function cancel() {
   if (resolver) resolver(false)
   resolver = null
   visible.value = false
+  checkboxLabel.value = ''
+  checkboxWarning.value = ''
+  checkboxChecked.value = false
 }
 
 export function useConfirmService() {
@@ -48,7 +68,11 @@ export function useConfirmService() {
     confirmText,
     cancelText,
     danger,
+    checkboxLabel,
+    checkboxWarning,
+    checkboxChecked,
     showConfirm,
+    showDeleteConfirm,
     confirm,
     cancel,
   }
@@ -62,7 +86,11 @@ export default {
   confirmText,
   cancelText,
   danger,
+  checkboxLabel,
+  checkboxWarning,
+  checkboxChecked,
   showConfirm,
+  showDeleteConfirm,
   confirm,
   cancel,
   useConfirmService,

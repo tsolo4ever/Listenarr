@@ -75,7 +75,7 @@
           <div class="meta-info">
             <span class="runtime" v-if="audiobook.runtime">
               <PhClock />
-              {{ formatRuntime(audiobook.runtime) }}
+              {{ formatRuntime(Math.round((audiobook.runtime ?? 0) / 60)) }}
             </span>
           </div>
 
@@ -285,6 +285,7 @@
               <div class="file-info">
                 <PhFileAudio />
                 <span class="file-name">{{ getFileName(f.path) }}</span>
+                <span v-if="f.exists === false" class="badge-missing">File missing</span>
                 <small class="file-meta">• {{ f.format ? f.format.toUpperCase() : '' }}
                   {{ f.durationSeconds ? '• ' + formatDuration(f.durationSeconds) : '' }}</small>
               </div>
@@ -405,17 +406,6 @@
       </div>
     </div>
 
-    <DeleteConfirmationModal :visible="showDeleteDialog" title="Confirm Deletion" @close="cancelDelete"
-      @confirm="executeDelete">
-      <template #default>
-        <p>Are you sure you want to delete <strong>{{ audiobook.title }}</strong>? This action cannot be undone. The audiobook data and cached images will be permanently removed.</p>
-        <label class="delete-files-option">
-          <input type="checkbox" v-model="deleteFilesOnDisk" />
-          Also delete audio files from disk
-        </label>
-        <p v-if="deleteFilesOnDisk" class="warning-text">The physical audio files will be permanently deleted from your file system.</p>
-      </template>
-    </DeleteConfirmationModal>
   </div>
 
   <!-- Loading State -->
@@ -472,7 +462,7 @@ import { useProtectedImages } from '@/composables/useProtectedImages'
 import EditAudiobookModal from '@/components/domain/audiobook/EditAudiobookModal.vue'
 import ManualSearchModal from '@/components/domain/search/ManualSearchModal.vue'
 import CustomSelect from '@/components/form/CustomSelect.vue'
-import DeleteConfirmationModal from '@/components/feedback/DeleteConfirmationModal.vue'
+import { showDeleteConfirm } from '@/composables/confirmService'
 import { Pill } from '@/components/base'
 import {
   PhArrowLeft,
@@ -523,8 +513,6 @@ const audiobook = ref<Audiobook | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const activeTab = ref<DetailTab>('details')
-const showDeleteDialog = ref(false)
-const deleteFilesOnDisk = ref(false)
 const showManualSearchModal = ref(false)
 const deleting = ref(false)
 const showFullDescription = ref(false)
@@ -1229,34 +1217,27 @@ function toggleMonitored() {
   }
 }
 
-function confirmDelete() {
-  deleteFilesOnDisk.value = false
-  showDeleteDialog.value = true
-}
-
-function cancelDelete() {
-  showDeleteDialog.value = false
-}
-
-async function executeDelete() {
+async function confirmDelete() {
   if (!audiobook.value) return
-
+  const { confirmed, deleteFiles } = await showDeleteConfirm(
+    `Are you sure you want to delete ${audiobook.value.title}? This action cannot be undone. The audiobook data and cached images will be permanently removed.`,
+    'Confirm Deletion',
+  )
+  if (!confirmed) return
   deleting.value = true
   try {
-    const success = await libraryStore.removeFromLibrary(audiobook.value.id, deleteFilesOnDisk.value)
+    const success = await libraryStore.removeFromLibrary(audiobook.value.id, deleteFiles)
     if (success) {
-      // Navigate back to library after successful deletion
       router.push('/audiobooks')
     }
   } catch (err) {
     errorTracking.captureException(err as Error, {
       component: 'AudiobookDetailView',
-      operation: 'executeDelete',
+      operation: 'confirmDelete',
       metadata: { audiobookId: audiobook.value?.id },
     })
   } finally {
     deleting.value = false
-    showDeleteDialog.value = false
   }
 }
 
@@ -2382,6 +2363,16 @@ a.identifier-link:hover {
 
 .file-meta {
   color: #999;
+}
+
+.badge-missing {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  white-space: nowrap;
 }
 
 .file-actions {

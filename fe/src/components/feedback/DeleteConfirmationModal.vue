@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import { Modal, ModalHeader, ModalBody } from '@/components/feedback'
-import { PhWarningCircle, PhTrash } from '@phosphor-icons/vue' 
+import { PhWarningCircle, PhTrash } from '@phosphor-icons/vue'
 defineProps({
   visible: { type: Boolean, required: true },
   title: { type: String, default: 'Delete' },

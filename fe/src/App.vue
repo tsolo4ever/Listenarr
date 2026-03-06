@@ -451,7 +451,9 @@
       :confirmText="confirmConfirmText"
       :cancelText="confirmCancelText"
       :danger="confirmDanger"
-      @confirm="confirm.confirm"
+      :checkboxLabel="confirmCheckboxLabel"
+      :checkboxWarning="confirmCheckboxWarning"
+      @confirm="confirm.confirm($event)"
     />
     <NotificationModal
       :visible="notification.visible"
@@ -622,6 +624,8 @@ const confirmMessage = computed(() => confirm.message.value)
 const confirmConfirmText = computed(() => confirm.confirmText.value)
 const confirmCancelText = computed(() => confirm.cancelText.value)
 const confirmDanger = computed(() => confirm.danger.value)
+const confirmCheckboxLabel = computed(() => confirm.checkboxLabel.value)
+const confirmCheckboxWarning = computed(() => confirm.checkboxWarning.value)
 
 // Preload helper for route components on user intent (hover/focus/touch)
 function preload(name: string) {

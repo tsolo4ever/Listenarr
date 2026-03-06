@@ -73,7 +73,9 @@ const props = defineProps<{ folders: RootFolder[] }>()
 const store = useLibraryImportStore()
 const toast = useToast()
 
-const destinationFolderId = ref<number | null>(props.folders[0]?.id ?? null)
+const destinationFolderId = ref<number | null>(
+  (props.folders.find((f) => f.isDefault) ?? props.folders[0])?.id ?? null,
+)
 const destinationPath = computed(
   () => props.folders.find((f) => f.id === destinationFolderId.value)?.path ?? '',
 )

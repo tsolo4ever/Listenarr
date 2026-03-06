@@ -125,8 +125,13 @@ onMounted(async () => {
   if (rootFoldersStore.folders.length === 0) await rootFoldersStore.load()
   await configStore.loadApplicationSettings()
 
-  // Default to the default root folder or first
-  const defaultFolder = rootFoldersStore.defaultFolder ?? rootFoldersStore.folders[0] ?? null
+  // Scan source: prefer the first non-default folder (temp/incoming), fall back to default
+  const scanFolder =
+    rootFoldersStore.folders.find((f) => !f.isDefault) ??
+    rootFoldersStore.defaultFolder ??
+    rootFoldersStore.folders[0] ??
+    null
+  const defaultFolder = scanFolder
   if (defaultFolder) {
     selectedFolderId.value = defaultFolder.id
     await store.initFromRootFolder(defaultFolder.id)

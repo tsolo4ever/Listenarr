@@ -338,6 +338,8 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     if (!match.asin) return base
     try {
       type AudimetaPayload = {
+        title?: string
+        subtitle?: string
         authors?: { name?: string }[]
         narrators?: { name?: string }[]
       }
@@ -348,8 +350,18 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
         resp && 'metadata' in resp && resp.metadata ? resp.metadata : (resp as AudimetaPayload)
       const enrichedAuthors = (raw.authors ?? []).map((a) => a?.name ?? '').filter(Boolean)
       const enrichedNarrators = (raw.narrators ?? []).map((n) => n?.name ?? '').filter(Boolean)
+      // Combine title + subtitle from Audimeta so each book in a series gets a unique name.
+      // Audimeta often returns title="The Land" + subtitle="Founding" separately; combining
+      // them produces "The Land: Founding" which generates a unique path per book.
+      const rawTitle = raw.title ?? ''
+      const rawSubtitle = raw.subtitle ?? ''
+      const combinedTitle =
+        rawTitle && rawSubtitle && !rawTitle.toLowerCase().includes(rawSubtitle.toLowerCase())
+          ? `${rawTitle}: ${rawSubtitle}`
+          : rawTitle || base.title
       return {
         ...base,
+        ...(combinedTitle ? { title: combinedTitle, subtitle: rawSubtitle || base.subtitle } : {}),
         ...(enrichedAuthors.length > 0 ? { authors: enrichedAuthors } : {}),
         ...(enrichedNarrators.length > 0 ? { narrators: enrichedNarrators } : {}),
       }

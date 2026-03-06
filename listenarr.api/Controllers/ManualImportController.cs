@@ -435,6 +435,15 @@ public class ManualImportController : ControllerBase
             : !string.IsNullOrWhiteSpace(metadata.Title) ? metadata.Title
             : string.Empty;
 
+        // Append subtitle from DB when the embedded file tag gives a generic series title
+        // (e.g. Album="The Land", Subtitle="Founding" → "The Land: Founding") so each book
+        // in a series gets a unique path rather than all colliding into the same folder.
+        if (!string.IsNullOrWhiteSpace(audiobook.Subtitle)
+            && !title.Contains(audiobook.Subtitle, StringComparison.OrdinalIgnoreCase))
+        {
+            title = string.IsNullOrWhiteSpace(title) ? audiobook.Subtitle : $"{title}: {audiobook.Subtitle}";
+        }
+
         var author = !string.IsNullOrWhiteSpace(metadata.AlbumArtist) ? metadata.AlbumArtist
             : !string.IsNullOrWhiteSpace(metadata.Artist) ? metadata.Artist
             : audiobook.Authors?.FirstOrDefault() is { Length: > 0 } a ? a

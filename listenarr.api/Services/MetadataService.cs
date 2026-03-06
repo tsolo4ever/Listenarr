@@ -182,6 +182,24 @@ namespace Listenarr.Api.Services
                                         {
                                             metadata.Bitrate = bitRate;
                                         }
+
+                                        // Read embedded tags (title, artist, album, etc.) for use in naming
+                                        if (fmt.TryGetProperty("tags", out var fmtTags) && fmtTags.ValueKind == JsonValueKind.Object)
+                                        {
+                                            metadata.Album      = GetFfprobeTag(fmtTags, "album", "ALBUM") ?? string.Empty;
+                                            metadata.Title      = GetFfprobeTag(fmtTags, "title", "TITLE") ?? string.Empty;
+                                            metadata.AlbumArtist = GetFfprobeTag(fmtTags, "album_artist", "ALBUM_ARTIST") ?? string.Empty;
+                                            metadata.Artist     = GetFfprobeTag(fmtTags, "artist", "ARTIST") ?? string.Empty;
+                                            metadata.Narrator   = GetFfprobeTag(fmtTags, "composer", "COMPOSER") ?? string.Empty;
+                                            metadata.Series     = GetFfprobeTag(fmtTags, "SERIES", "series") ?? string.Empty;
+                                            metadata.Asin       = GetFfprobeTag(fmtTags, "ASIN", "asin") ?? string.Empty;
+                                            metadata.Description = GetFfprobeTag(fmtTags, "DESCRIPTION", "description", "comment", "COMMENT") ?? string.Empty;
+                                            var rawYear = GetFfprobeTag(fmtTags, "date", "year", "DATE", "YEAR")?.Split('-')[0].Trim();
+                                            if (int.TryParse(rawYear, out var parsedYear) && parsedYear > 1000) metadata.Year = parsedYear;
+                                            var rawPos = GetFfprobeTag(fmtTags, "PART", "part", "SERIES-PART", "series-part");
+                                            if (decimal.TryParse(rawPos, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var seriesPos))
+                                                metadata.SeriesPosition = seriesPos;
+                                        }
                                     }
 
                                     // Streams: look for audio stream for sample rate, channels
@@ -351,6 +369,19 @@ namespace Listenarr.Api.Services
                 metadata.CoverArtUrl = coverUrl.GetString();
 
             return metadata;
+        }
+
+        private static string? GetFfprobeTag(JsonElement tags, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                if (tags.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String)
+                {
+                    var s = v.GetString();
+                    if (!string.IsNullOrWhiteSpace(s)) return s;
+                }
+            }
+            return null;
         }
     }
 }

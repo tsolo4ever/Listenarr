@@ -373,17 +373,20 @@ public class ManualImportController : ControllerBase
         }
 
         // Build variables for the pattern.
-        // Priority: gathered metadata (audiobook DB record, ideally from Audimeta)
-        //           → file embedded tags (metadata from TagLib)
-        //           → empty string (path-parsed data already lives in audiobook fields as last resort)
-        var title = !string.IsNullOrWhiteSpace(audiobook.Title) ? audiobook.Title
+        // Title/Author priority: file embedded tags → audiobook DB → empty string.
+        //   The embedded "album" tag is the canonical book title in audiobook conventions (set by
+        //   Audible and most ripping tools), so it is more reliable than path-parsed DB data.
+        //   DB title still wins when the file has no embedded tags (older files, stripped tags).
+        // Series/SeriesNumber/Year priority: DB first (Audimeta is more accurate here),
+        //   then file embedded tags as fallback.
+        var title = !string.IsNullOrWhiteSpace(metadata.Album) ? metadata.Album
+            : !string.IsNullOrWhiteSpace(audiobook.Title) ? audiobook.Title
             : !string.IsNullOrWhiteSpace(metadata.Title) ? metadata.Title
-            : !string.IsNullOrWhiteSpace(metadata.Album) ? metadata.Album
             : string.Empty;
 
-        var author = audiobook.Authors?.FirstOrDefault() is { Length: > 0 } a ? a
-            : !string.IsNullOrWhiteSpace(metadata.AlbumArtist) ? metadata.AlbumArtist
+        var author = !string.IsNullOrWhiteSpace(metadata.AlbumArtist) ? metadata.AlbumArtist
             : !string.IsNullOrWhiteSpace(metadata.Artist) ? metadata.Artist
+            : audiobook.Authors?.FirstOrDefault() is { Length: > 0 } a ? a
             : string.Empty;
 
         var series = !string.IsNullOrWhiteSpace(audiobook.Series) ? audiobook.Series

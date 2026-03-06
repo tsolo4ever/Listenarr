@@ -831,6 +831,28 @@ namespace Listenarr.Api.Services
 
                             if (converted.Any()) return SearchResultConverters.ToMetadataList(converted);
                         }
+                        else
+                        {
+                            // Author ASIN not found — fall back to combined title+author text search
+                            _logger.LogInformation("AUTHOR_TITLE search found no results for author '{Author}' via ASIN lookup; falling back to title/author text search", parsedAuthor);
+                            var fallback = await _audimetaService.SearchByTitleAndAuthorAsync(parsedTitle ?? string.Empty, parsedAuthor, 1, returnLimit, region, language);
+                            if (fallback?.Results != null && fallback.Results.Any())
+                            {
+                                var converted = new List<SearchResult>();
+                                foreach (var book in fallback.Results)
+                                {
+                                    if (string.IsNullOrWhiteSpace(book.Asin)) continue;
+                                    var bookResp = new AudimetaBookResponse { Asin = book.Asin, Title = book.Title, Subtitle = book.Subtitle, Authors = book.Authors, ImageUrl = book.ImageUrl, Language = book.Language, BookFormat = book.BookFormat, Genres = book.Genres, Series = book.Series, Publisher = book.Publisher, Narrators = book.Narrators, ReleaseDate = book.ReleaseDate };
+                                    var meta = _metadataConverters.ConvertAudimetaToMetadata(bookResp, book.Asin, "Audimeta");
+                                    var sr = await _metadataConverters.ConvertMetadataToSearchResultAsync(meta, book.Asin);
+                                    sr.IsEnriched = true;
+                                    sr.MetadataSource = "Audimeta";
+                                    converted.Add(sr);
+                                }
+                                if (converted.Any()) return SearchResultConverters.ToMetadataList(converted);
+                            }
+                            return new List<MetadataSearchResult>();
+                        }
                     }
 
                     // TITLE-only

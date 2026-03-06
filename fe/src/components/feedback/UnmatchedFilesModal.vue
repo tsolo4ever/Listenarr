@@ -208,7 +208,8 @@ watch(
   () => rootFoldersStore.folders,
   (folders) => {
     if (destinationFolderId.value === null && folders.length) {
-      destinationFolderId.value = (folders.find((f) => f.isDefault) ?? folders[0]).id
+      const target = folders.find((f) => f.isDefault) ?? folders[0]
+      if (target) destinationFolderId.value = target.id
     }
   },
   { immediate: true },

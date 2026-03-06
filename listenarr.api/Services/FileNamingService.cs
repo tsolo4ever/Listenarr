@@ -410,8 +410,11 @@ namespace Listenarr.Api.Services
                 return "Unknown";
             }
 
-            // Get invalid filename characters
-            var invalidChars = Path.GetInvalidFileNameChars();
+            // Get invalid filename characters — include Windows-forbidden chars even on Linux
+            // so paths are valid on Windows SMB shares regardless of where the server runs
+            var invalidChars = Path.GetInvalidFileNameChars()
+                .Union(new[] { '<', '>', ':', '"', '\\', '|', '?', '*' })
+                .ToHashSet();
 
             // Replace invalid characters with underscore
             var sanitized = new StringBuilder();

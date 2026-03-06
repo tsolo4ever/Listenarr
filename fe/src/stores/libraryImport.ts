@@ -106,7 +106,10 @@ function matchToMetadata(result: SearchResult): AudibleBookMetadata {
     description: result.description,
     publisher: result.publisher,
     language: result.language,
-    runtime: result.runtime ?? (result.lengthMinutes ? result.lengthMinutes * 60 : undefined),
+    // SearchResult.runtime and lengthMinutes are both in MINUTES; DB expects SECONDS
+    runtime: result.lengthMinutes ? result.lengthMinutes * 60
+           : result.runtime      ? result.runtime * 60
+           : undefined,
     imageUrl: result.imageUrl,
     genres: result.genres,
     narrators: result.narrators?.map((n) => n.name ?? '').filter(Boolean),
@@ -355,8 +358,12 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
       // them produces "The Land: Founding" which generates a unique path per book.
       const rawTitle = raw.title ?? ''
       const rawSubtitle = raw.subtitle ?? ''
+      // Only combine title+subtitle when the title is generic (no colon = no embedded subtitle).
+      // If rawTitle already has ":" (e.g. "The Land: Forging"), it's already specific — don't append.
       const combinedTitle =
-        rawTitle && rawSubtitle && !rawTitle.toLowerCase().includes(rawSubtitle.toLowerCase())
+        rawTitle && rawSubtitle
+        && !rawTitle.includes(':')
+        && !rawTitle.toLowerCase().includes(rawSubtitle.toLowerCase())
           ? `${rawTitle}: ${rawSubtitle}`
           : rawTitle || base.title
       return {

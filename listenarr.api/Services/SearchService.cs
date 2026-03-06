@@ -623,9 +623,9 @@ namespace Listenarr.Api.Services
                                 .GroupBy(b => b.Asin, StringComparer.OrdinalIgnoreCase)
                                 .Select(g => g.First())
                                 .ToList();
-                            
+
                             _logger.LogInformation("Deduplicated author results for '{Author}': {OriginalCount} -> {DeduplicatedCount}", parsedAuthor, aggregated.Count, deduplicated.Count);
-                            
+
                             var converted = new List<SearchResult>();
                             var authorFiltered = deduplicated.AsEnumerable();
                             if (!string.IsNullOrWhiteSpace(language)) authorFiltered = authorFiltered.Where(b => !string.IsNullOrWhiteSpace(b.Language) && string.Equals(b.Language, language, StringComparison.OrdinalIgnoreCase));
@@ -654,6 +654,30 @@ namespace Listenarr.Api.Services
                                 converted.Add(sr);
                             }
                             if (converted.Any()) return SearchResultConverters.ToMetadataList(converted);
+                        }
+                        else
+                        {
+                            // Author ASIN not found by name (pen name / abbreviation) — fall back to
+                            // title+author text search using the author name as the query so we at least
+                            // get relevant results instead of falling through to an empty-query general search.
+                            _logger.LogInformation("AUTHOR search found no results for '{Author}' via author ASIN lookup; falling back to title/author text search", parsedAuthor);
+                            var fallback = await _audimetaService.SearchByTitleAndAuthorAsync(parsedAuthor, parsedAuthor, 1, returnLimit, region, language);
+                            if (fallback?.Results != null && fallback.Results.Any())
+                            {
+                                var converted = new List<SearchResult>();
+                                foreach (var book in fallback.Results)
+                                {
+                                    if (string.IsNullOrWhiteSpace(book.Asin)) continue;
+                                    var bookResp = new AudimetaBookResponse { Asin = book.Asin, Title = book.Title, Subtitle = book.Subtitle, Authors = book.Authors, ImageUrl = book.ImageUrl, Language = book.Language, BookFormat = book.BookFormat, Genres = book.Genres, Series = book.Series, Publisher = book.Publisher, Narrators = book.Narrators, ReleaseDate = book.ReleaseDate };
+                                    var meta = _metadataConverters.ConvertAudimetaToMetadata(bookResp, book.Asin, "Audimeta");
+                                    var sr = await _metadataConverters.ConvertMetadataToSearchResultAsync(meta, book.Asin);
+                                    sr.IsEnriched = true;
+                                    sr.MetadataSource = "Audimeta";
+                                    converted.Add(sr);
+                                }
+                                if (converted.Any()) return SearchResultConverters.ToMetadataList(converted);
+                            }
+                            return new List<MetadataSearchResult>();
                         }
                     }
 

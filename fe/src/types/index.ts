@@ -417,6 +417,7 @@ export interface Audiobook {
   files?: {
     id: number
     path?: string
+    exists?: boolean
     size?: number
     durationSeconds?: number
     format?: string

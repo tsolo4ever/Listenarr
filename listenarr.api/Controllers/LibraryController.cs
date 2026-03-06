@@ -108,6 +108,11 @@ namespace Listenarr.Api.Controllers
             var files = audiobook.Files;
             if (files == null || files.Count == 0)
             {
+                // Fallback: check the legacy single-file path (set by manual import before scan runs)
+                if (!string.IsNullOrWhiteSpace(audiobook.FilePath) && System.IO.File.Exists(audiobook.FilePath))
+                {
+                    return false;
+                }
                 return true;
             }
 
@@ -660,6 +665,7 @@ namespace Listenarr.Api.Controllers
                 {
                     id = f.Id,
                     path = f.Path,
+                    exists = !string.IsNullOrWhiteSpace(f.Path) && System.IO.File.Exists(f.Path),
                     size = f.Size,
                     durationSeconds = f.DurationSeconds,
                     format = f.Format,
@@ -749,6 +755,7 @@ namespace Listenarr.Api.Controllers
                 {
                     id = f.Id,
                     path = f.Path,
+                    exists = !string.IsNullOrWhiteSpace(f.Path) && System.IO.File.Exists(f.Path),
                     size = f.Size,
                     durationSeconds = f.DurationSeconds,
                     format = f.Format,

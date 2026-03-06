@@ -234,7 +234,7 @@
             <div v-if="matchTab === 'search'" class="match-inputs">
               <input v-model="matchTitle" class="form-input" placeholder="Title" @keyup.enter="runMatchSearch" />
               <input v-model="matchAuthor" class="form-input" placeholder="Author" @keyup.enter="runMatchSearch" />
-              <button class="btn btn-primary" @click="runMatchSearch" :disabled="isMatchSearching || !matchTitle.trim()">
+              <button class="btn btn-primary" @click="runMatchSearch" :disabled="isMatchSearching || (!matchTitle.trim() && !matchAuthor.trim())">
                 <PhSpinner v-if="isMatchSearching" class="ph-spin" />
                 <PhMagnifyingGlass v-else />
                 {{ isMatchSearching ? 'Searching...' : 'Search' }}
@@ -518,7 +518,7 @@ const mapAudimetaToAudible = (
 
 // Match search functions
 async function runMatchSearch() {
-  if (!matchTitle.value.trim()) return
+  if (!matchTitle.value.trim() && !matchAuthor.value.trim()) return
   isMatchSearching.value = true
   matchSearchError.value = ''
   matchResults.value = []

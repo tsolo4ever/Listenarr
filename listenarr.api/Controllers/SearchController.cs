@@ -616,7 +616,7 @@ namespace Listenarr.Api.Controllers
 
                     // Flatten metadata results into Audimeta-like objects for public POST /api/search response
                     var flatMapped = await Task.WhenAll((results ?? new List<MetadataSearchResult>()).Select(r => MapMetadataResultToAudimetaAsync(r, region))).ConfigureAwait(false);
-                    return Ok(flatMapped);
+                    return Ok(new { results = flatMapped, totalResults = flatMapped.Length });
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException) {

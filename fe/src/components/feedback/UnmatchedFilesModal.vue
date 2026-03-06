@@ -99,6 +99,12 @@
     <template #footer>
       <ModalFooter :showCancel="false">
         <template #left>
+          <div v-if="phase === 'results' && rootFoldersStore.folders.length" class="destination-selector">
+            <span class="dest-label">{{ fileActionLabel }}:</span>
+            <select v-model="destinationFolderId" class="dest-select" :disabled="bulkAdding">
+              <option v-for="f in rootFoldersStore.folders" :key="f.id" :value="f.id">{{ f.name }}</option>
+            </select>
+          </div>
           <div v-if="phase === 'results' && asinCount > 0 && !bulkAdding" class="bulk-hint">
             {{ asinCount }} item{{ asinCount !== 1 ? 's' : '' }} with ASIN
           </div>
@@ -160,6 +166,8 @@ import {
 import { apiService } from '@/services/api'
 import { signalRService } from '@/services/signalr'
 import { useToast } from '@/services/toastService'
+import { useRootFoldersStore } from '@/stores/rootFolders'
+import { useConfigurationStore } from '@/stores/configuration'
 import type { UnmatchedFileItem, AudibleBookMetadata, Audiobook, RootFolder } from '@/types'
 
 interface Props {
@@ -189,6 +197,32 @@ const bulkTotal = ref(0)
 
 const asinCount = computed(() => items.value.filter((i) => i.asin).length)
 const rootFolderName = computed(() => props.rootFolder?.name || props.rootFolder?.path || 'folder')
+
+const rootFoldersStore = useRootFoldersStore()
+const configStore = useConfigurationStore()
+
+const destinationFolderId = ref<number | null>(null)
+
+// Pre-select the default root folder once folders are available
+watch(
+  () => rootFoldersStore.folders,
+  (folders) => {
+    if (destinationFolderId.value === null && folders.length) {
+      destinationFolderId.value = (folders.find((f) => f.isDefault) ?? folders[0]).id
+    }
+  },
+  { immediate: true },
+)
+
+const destinationFolder = computed(
+  () => rootFoldersStore.folders.find((f) => f.id === destinationFolderId.value) ?? null,
+)
+
+const fileAction = computed(() => configStore.applicationSettings?.completedFileAction ?? 'Move')
+const fileActionLabel = computed(() => (fileAction.value === 'Copy' ? 'Copy to' : 'Move to'))
+const fileInputMode = computed<'move' | 'hardlink/copy'>(() =>
+  fileAction.value === 'Copy' ? 'hardlink/copy' : 'move',
+)
 
 let jobId = ''
 let offSignalR: (() => void) | null = null
@@ -319,7 +353,7 @@ async function onAdded(audiobook: Audiobook) {
     await apiService.startManualImport({
       path: item.bookFolder,
       mode: 'interactive',
-      inputMode: 'move',
+      inputMode: fileInputMode.value,
       items: [
         {
           fullPath: item.fullPath,
@@ -407,14 +441,14 @@ async function addAllWithAsin() {
 
       const metadata = mapToAudible(raw, item)
       const { audiobook } = await apiService.addToLibrary(metadata, {
-        destinationPath: props.rootFolder?.path,
+        destinationPath: destinationFolder.value?.path,
       })
 
       try {
         const importResult = await apiService.startManualImport({
           path: item.bookFolder,
           mode: 'interactive',
-          inputMode: 'move',
+          inputMode: fileInputMode.value,
           items: [{ fullPath: item.fullPath, matchedAudiobookId: audiobook.id }],
         })
         if (importResult && importResult.importedCount === 0) {
@@ -582,5 +616,32 @@ async function addAllWithAsin() {
   gap: 0.5rem;
   font-size: 0.9rem;
   color: #4dabf7;
+}
+
+.destination-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.dest-label {
+  color: #adb5bd;
+  white-space: nowrap;
+}
+
+.dest-select {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+.dest-select:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 </style>

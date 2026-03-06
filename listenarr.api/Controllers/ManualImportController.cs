@@ -312,6 +312,15 @@ public class ManualImportController : ControllerBase
             if (!string.IsNullOrWhiteSpace(audiobook.Asin))
                 await _metadataService.WriteAsinTagAsync(destinationPath, audiobook.Asin);
 
+            // Scope the audiobook's BasePath to the book-level folder so focused scans
+            // don't walk the entire series directory and associate sibling files
+            var destDir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(destDir) && audiobook.BasePath != destDir)
+            {
+                audiobook.BasePath = destDir;
+                await _audiobookRepository.UpdateAsync(audiobook);
+            }
+
             // Record the destination to avoid collisions with subsequent items in this batch
             try
             {

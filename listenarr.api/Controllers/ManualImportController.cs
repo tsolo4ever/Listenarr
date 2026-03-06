@@ -372,15 +372,40 @@ public class ManualImportController : ControllerBase
             extension = ".m4b"; // Fallback if no extension
         }
 
-        // Build variables for the pattern - always include all keys so ApplyNamingPattern
-        // can properly clean up adjacent separators when values are empty
+        // Build variables for the pattern.
+        // Priority: gathered metadata (audiobook DB record, ideally from Audimeta)
+        //           → file embedded tags (metadata from TagLib)
+        //           → empty string (path-parsed data already lives in audiobook fields as last resort)
+        var title = !string.IsNullOrWhiteSpace(audiobook.Title) ? audiobook.Title
+            : !string.IsNullOrWhiteSpace(metadata.Title) ? metadata.Title
+            : !string.IsNullOrWhiteSpace(metadata.Album) ? metadata.Album
+            : string.Empty;
+
+        var author = audiobook.Authors?.FirstOrDefault() is { Length: > 0 } a ? a
+            : !string.IsNullOrWhiteSpace(metadata.AlbumArtist) ? metadata.AlbumArtist
+            : !string.IsNullOrWhiteSpace(metadata.Artist) ? metadata.Artist
+            : string.Empty;
+
+        var series = !string.IsNullOrWhiteSpace(audiobook.Series) ? audiobook.Series
+            : !string.IsNullOrWhiteSpace(metadata.Series) ? metadata.Series
+            : string.Empty;
+
+        var seriesNumber = !string.IsNullOrWhiteSpace(audiobook.SeriesNumber) ? audiobook.SeriesNumber
+            : (metadata.SeriesPosition.HasValue ? metadata.SeriesPosition.Value.ToString("G") : null)
+            ?? string.Empty;
+
+        var year = !string.IsNullOrWhiteSpace(audiobook.PublishYear) ? audiobook.PublishYear
+            : (metadata.Year.HasValue ? metadata.Year.Value.ToString() : null)
+            ?? (metadata.PublishDate.HasValue ? metadata.PublishDate.Value.Year.ToString() : null)
+            ?? string.Empty;
+
         var variables = new Dictionary<string, object>
         {
-            { "Author", audiobook.Authors?.FirstOrDefault() ?? string.Empty },
-            { "Title", !string.IsNullOrWhiteSpace(audiobook.Title) ? audiobook.Title : "Unknown Title" },
-            { "Series", audiobook.Series ?? string.Empty },
-            { "SeriesNumber", audiobook.SeriesNumber ?? string.Empty },
-            { "Year", audiobook.PublishYear ?? string.Empty },
+            { "Author", author },
+            { "Title", title },
+            { "Series", series },
+            { "SeriesNumber", seriesNumber },
+            { "Year", year },
             { "DiskNumber", (metadata.DiscNumber.HasValue && metadata.DiscNumber.Value > 0) ? metadata.DiscNumber.Value.ToString("00") : string.Empty },
             { "ChapterNumber", (metadata.TrackNumber.HasValue && metadata.TrackNumber.Value > 0) ? metadata.TrackNumber.Value.ToString() : string.Empty },
         };

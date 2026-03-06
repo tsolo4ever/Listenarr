@@ -62,7 +62,7 @@
                 </div>
                 <div v-if="book.runtime" class="detail-item">
                   <span class="label">Listening Length:</span>
-                  <span class="value">{{ formatRuntime(book.runtime) }}</span>
+                  <span class="value">{{ formatRuntime(Math.round((book.runtime ?? 0) / 60)) }}</span>
                 </div>
               </div>
             </div>
@@ -215,6 +215,62 @@
             </small>
           </div>
         </div>
+
+        <!-- Find a Match section -->
+        <div class="match-search-section">
+          <button class="match-toggle" @click="showMatchSearch = !showMatchSearch">
+            <PhMagnifyingGlass />
+            Find a Different Match
+            <PhCaretUp v-if="showMatchSearch" />
+            <PhCaretDown v-else />
+          </button>
+
+          <div v-if="showMatchSearch" class="match-panel">
+            <div class="match-tabs">
+              <button :class="['match-tab', { active: matchTab === 'search' }]" @click="matchTab = 'search'">Search by Title/Author</button>
+              <button :class="['match-tab', { active: matchTab === 'asin' }]" @click="matchTab = 'asin'">Enter ASIN</button>
+            </div>
+
+            <div v-if="matchTab === 'search'" class="match-inputs">
+              <input v-model="matchTitle" class="form-input" placeholder="Title" @keyup.enter="runMatchSearch" />
+              <input v-model="matchAuthor" class="form-input" placeholder="Author" @keyup.enter="runMatchSearch" />
+              <button class="btn btn-primary" @click="runMatchSearch" :disabled="isMatchSearching || !matchTitle.trim()">
+                <PhSpinner v-if="isMatchSearching" class="ph-spin" />
+                <PhMagnifyingGlass v-else />
+                {{ isMatchSearching ? 'Searching...' : 'Search' }}
+              </button>
+            </div>
+
+            <div v-if="matchTab === 'asin'" class="match-inputs">
+              <input v-model="matchAsin" class="form-input" placeholder="ASIN (e.g. B01N4AGQ0Y)" @keyup.enter="applyMatchAsin" />
+              <button class="btn btn-primary" @click="applyMatchAsin" :disabled="isMatchSearching || !matchAsin.trim()">
+                <PhSpinner v-if="isMatchSearching" class="ph-spin" />
+                {{ isMatchSearching ? 'Looking up...' : 'Lookup' }}
+              </button>
+            </div>
+
+            <p v-if="matchSearchError" class="match-error">{{ matchSearchError }}</p>
+
+            <div v-if="matchResults.length" class="match-results">
+              <button
+                v-for="result in matchResults"
+                :key="result.asin"
+                class="match-result-row"
+                @click="applyMatchResult(result)"
+              >
+                <img v-if="result.imageUrl" :src="result.imageUrl" class="match-result-thumb" :alt="result.title" loading="lazy" />
+                <div v-else class="match-result-thumb-placeholder"><PhImage /></div>
+                <div class="match-result-info">
+                  <span class="match-result-title">{{ result.title }}</span>
+                  <span class="match-result-meta">
+                    {{ result.authors?.map((a: { name?: string }) => a.name).filter(Boolean).join(', ') }}
+                    <span v-if="result.releaseDate"> · {{ result.releaseDate?.slice(0, 4) }}</span>
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
       </ModalBody>
 
     </template>
@@ -235,7 +291,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed, onBeforeUnmount, nextTick } from 'vue'
-import type { AudibleBookMetadata, QualityProfile, Audiobook } from '@/types'
+import type { AudibleBookMetadata, QualityProfile, Audiobook, AudimetaSearchResult } from '@/types'
 import { apiService } from '@/services/api'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useToast } from '@/services/toastService'
@@ -245,7 +301,7 @@ import RootFolderSelect from '@/components/form/RootFolderSelect.vue'
 import Checkbox from '@/components/form/Checkbox.vue'
 import FormRow from '@/components/settings/FormRow.vue'
 import { useRootFoldersStore } from '@/stores/rootFolders'
-import { PhX, PhSpinner, PhPlus, PhImage } from '@phosphor-icons/vue' 
+import { PhX, PhSpinner, PhPlus, PhImage, PhMagnifyingGlass, PhCaretDown, PhCaretUp } from '@phosphor-icons/vue'
 import { toForward, normalizeForCompare } from '@/utils/path' 
 import { formatDate } from '@/utils/searchResultFormatting'
 import { stripHtmlAndNormalize } from '@/utils/textUtils'
@@ -351,6 +407,16 @@ const imageRetryCount = ref(0)
 const metadataLoading = ref(false)
 const metadataSource = ref<string | null>(null)
 
+// Match search state
+const showMatchSearch = ref(false)
+const matchTab = ref<'search' | 'asin'>('search')
+const matchTitle = ref('')
+const matchAuthor = ref('')
+const matchAsin = ref('')
+const matchResults = ref<AudimetaSearchResult[]>([])
+const isMatchSearching = ref(false)
+const matchSearchError = ref('')
+
 const imageSrc = computed(() => {
   // prefer resolvedImageUrl passed from parent
   const base = props.resolvedImageUrl || enriched.value?.imageUrl || props.book?.imageUrl || ''
@@ -450,6 +516,79 @@ const mapAudimetaToAudible = (
   }
 }
 
+// Match search functions
+async function runMatchSearch() {
+  if (!matchTitle.value.trim()) return
+  isMatchSearching.value = true
+  matchSearchError.value = ''
+  matchResults.value = []
+  try {
+    const resp = await apiService.searchAudimetaByTitleAndAuthor(
+      matchTitle.value.trim(),
+      matchAuthor.value.trim(),
+    )
+    matchResults.value = resp.results ?? []
+    if (!matchResults.value.length) matchSearchError.value = 'No results found.'
+  } catch {
+    matchSearchError.value = 'Search failed. Please try again.'
+  } finally {
+    isMatchSearching.value = false
+  }
+}
+
+async function applyMatchAsin() {
+  const asin = matchAsin.value.trim()
+  if (!asin) return
+  isMatchSearching.value = true
+  matchSearchError.value = ''
+  try {
+    const resp = await apiService.getAudibleMetadata<AudimetaMetadataResponse | Partial<Audimeta>>(asin)
+    const payload = (resp && typeof resp === 'object' ? resp : {}) as AudimetaMetadataResponse | Partial<Audimeta>
+    const source = 'source' in payload && typeof payload.source === 'string' ? payload.source : undefined
+    const metadata = 'metadata' in payload && payload.metadata ? payload.metadata : (payload as Partial<Audimeta>)
+    if (metadata && typeof metadata === 'object') {
+      enriched.value = mapAudimetaToAudible(metadata, source)
+      metadataSource.value = source || null
+    }
+    showMatchSearch.value = false
+    matchResults.value = []
+  } catch {
+    matchSearchError.value = 'ASIN lookup failed. Check the ASIN and try again.'
+  } finally {
+    isMatchSearching.value = false
+  }
+}
+
+async function applyMatchResult(result: AudimetaSearchResult) {
+  if (!result.asin) {
+    enriched.value = mapAudimetaToAudible(result as Partial<Audimeta>)
+    showMatchSearch.value = false
+    matchResults.value = []
+    return
+  }
+  isMatchSearching.value = true
+  matchSearchError.value = ''
+  try {
+    const resp = await apiService.getAudibleMetadata<AudimetaMetadataResponse | Partial<Audimeta>>(result.asin)
+    const payload = (resp && typeof resp === 'object' ? resp : {}) as AudimetaMetadataResponse | Partial<Audimeta>
+    const source = 'source' in payload && typeof payload.source === 'string' ? payload.source : undefined
+    const metadata = 'metadata' in payload && payload.metadata ? payload.metadata : (payload as Partial<Audimeta>)
+    enriched.value = mapAudimetaToAudible(
+      metadata && typeof metadata === 'object' ? metadata : (result as Partial<Audimeta>),
+      source,
+    )
+    metadataSource.value = source || null
+    showMatchSearch.value = false
+    matchResults.value = []
+  } catch {
+    enriched.value = mapAudimetaToAudible(result as Partial<Audimeta>)
+    showMatchSearch.value = false
+    matchResults.value = []
+  } finally {
+    isMatchSearching.value = false
+  }
+}
+
 // helper to load profiles/settings and seed preview
 const seedPreview = async () => {
   await configStore.loadQualityProfiles()
@@ -519,6 +658,13 @@ const seedPreview = async () => {
     )
   } catch (e) {
     console.error('Failed to preview path:', e)
+  }
+
+  // Pre-fill match search fields; auto-expand when no ASIN (unmatched item)
+  matchTitle.value = props.book?.title || ''
+  matchAuthor.value = props.book?.authors?.[0] || ''
+  if (!props.book?.asin) {
+    showMatchSearch.value = true
   }
 }
 
@@ -1003,5 +1149,113 @@ const capitalizeFirst = (str: string): string => {
   .btn {
     justify-content: center;
   }
+}
+
+/* Match search section */
+.match-search-section {
+  margin-top: 1.5rem;
+}
+.match-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #aaa;
+  font-size: 0.9rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.match-toggle:hover { color: white; }
+.match-panel {
+  margin-top: 1rem;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 1rem;
+  background: #1e1e1e;
+}
+.match-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.match-tab {
+  padding: 0.4rem 0.9rem;
+  border-radius: 4px;
+  border: 1px solid #444;
+  background: transparent;
+  color: #aaa;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.match-tab.active { background: #333; color: white; border-color: #555; }
+.match-inputs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.match-inputs .form-input { flex: 1 1 150px; }
+.match-error { color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem; }
+.match-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 0.75rem;
+}
+.match-result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 5px;
+  background: #2a2a2a;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.match-result-row:hover { border-color: var(--brand-500); background: #333; }
+.match-result-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.match-result-thumb-placeholder {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #333;
+  border-radius: 3px;
+  flex-shrink: 0;
+  color: #666;
+}
+.match-result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.match-result-title {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.match-result-meta {
+  color: #aaa;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

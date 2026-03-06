@@ -111,7 +111,11 @@ function matchToMetadata(result: SearchResult): AudibleBookMetadata {
            : result.runtime      ? result.runtime * 60
            : undefined,
     imageUrl: result.imageUrl,
-    genres: result.genres,
+    // SearchResult.genres comes as objects {asin, name, type} from Audimeta;
+    // AudibleBookMetadata.genres expects string[] (genre names only)
+    genres: Array.isArray(result.genres)
+      ? (result.genres as any[]).map((g) => (typeof g === 'string' ? g : g?.name)).filter(Boolean)
+      : result.genres,
     narrators: result.narrators?.map((n) => n.name ?? '').filter(Boolean),
     publishYear: result.releaseDate?.substring(0, 4) ?? result.publishDate?.substring(0, 4),
     metadataSource: result.metadataSource,

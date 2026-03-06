@@ -282,6 +282,8 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     }
 
     lookupQueue.value = lookupQueue.value.slice(1)
+    // Throttle to ~1 req/sec when queue started with >100 items to avoid Audimeta rate limit
+    if (itemList.value.length > 100) await new Promise((r) => setTimeout(r, 1000))
     await processNext()
   }
 

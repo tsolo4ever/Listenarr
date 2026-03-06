@@ -406,17 +406,22 @@ async function addAllWithAsin() {
       }
 
       const metadata = mapToAudible(raw, item)
-      const { audiobook } = await apiService.addToLibrary(metadata)
+      const { audiobook } = await apiService.addToLibrary(metadata, {
+        destinationPath: props.rootFolder?.path,
+      })
 
       try {
-        await apiService.startManualImport({
+        const importResult = await apiService.startManualImport({
           path: item.bookFolder,
           mode: 'interactive',
           inputMode: 'move',
           items: [{ fullPath: item.fullPath, matchedAudiobookId: audiobook.id }],
         })
+        if (importResult && importResult.importedCount === 0) {
+          toast.warning('File not linked', `${item.title || 'Book'} was added but the file could not be moved — check the library path`)
+        }
       } catch {
-        // link failure is non-fatal — book was added
+        toast.warning('File not linked', `${item.title || 'Book'} was added but the file could not be moved`)
       }
 
       items.value = items.value.filter((i) => i.fullPath !== item.fullPath)

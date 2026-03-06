@@ -292,6 +292,10 @@
               <div class="file-actions">
                 <span class="file-size" v-if="f.size">{{ formatFileSize(f.size) }}</span>
                 <span class="file-size" v-else>Unknown size</span>
+                <button class="btn-icon btn-unlink" title="Unlink file from audiobook"
+                  @click.stop="unlinkFile(f.id)">
+                  <PhLinkBreak :size="16" />
+                </button>
                 <PhCaretDown class="accordion-toggle" :class="{ rotated: isFileAccordionExpanded(f.id) }" />
               </div>
             </div>
@@ -462,7 +466,7 @@ import { useProtectedImages } from '@/composables/useProtectedImages'
 import EditAudiobookModal from '@/components/domain/audiobook/EditAudiobookModal.vue'
 import ManualSearchModal from '@/components/domain/search/ManualSearchModal.vue'
 import CustomSelect from '@/components/form/CustomSelect.vue'
-import { showDeleteConfirm } from '@/composables/confirmService'
+import { showDeleteConfirm, showConfirm } from '@/composables/confirmService'
 import { Pill } from '@/components/base'
 import {
   PhArrowLeft,
@@ -498,6 +502,7 @@ import {
   PhFileMinus,
   PhCircle,
   PhDiscordLogo,
+  PhLinkBreak,
 } from '@phosphor-icons/vue'
 
 const route = useRoute()
@@ -1099,6 +1104,24 @@ async function rescanMetadata() {
     toast.error('Metadata rescan failed', err instanceof Error ? err.message : String(err))
   } finally {
     rescanningMetadata.value = false
+  }
+}
+
+async function unlinkFile(fileId: number) {
+  if (!audiobook.value) return
+  const toast = useToast()
+  const confirmed = await showConfirm(
+    'Remove this file record from the audiobook? The physical file will NOT be deleted.',
+    'Unlink file',
+    { confirmText: 'Unlink' },
+  )
+  if (!confirmed) return
+  try {
+    await apiService.unlinkAudiobookFile(audiobook.value.id, fileId)
+    await loadAudiobook()
+    toast.success('File unlinked', 'The file record has been removed from this audiobook.')
+  } catch (err) {
+    toast.error('Unlink failed', err instanceof Error ? err.message : String(err))
   }
 }
 
@@ -2379,6 +2402,22 @@ a.identifier-link:hover {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.btn-unlink {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+}
+
+.btn-unlink:hover {
+  color: #e57373;
+  opacity: 1;
 }
 
 .accordion-toggle {

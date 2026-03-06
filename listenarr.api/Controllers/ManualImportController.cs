@@ -222,40 +222,52 @@ public class ManualImportController : ControllerBase
                 Directory.CreateDirectory(destinationDir);
             }
 
-            // If destination file exists, create a unique filename (append " (1)", " (2)", ...)
-            var preUniquePath = destinationPath;
-            try
-            {
-                _logger.LogDebug("Resolving unique destination for manual import: {Dest}, usedDestinations count: {Count}", destinationPath, usedDestinations?.Count ?? 0);
-                destinationPath = FileUtils.GetUniqueDestinationPath(destinationPath, System.IO.File.Exists, usedDestinations);
-                if (preUniquePath != destinationPath)
-                {
-                    _logger.LogDebug("Unique destination changed from {Old} to {New}", preUniquePath, destinationPath);
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException) {
-                _logger.LogWarning(ex, "Failed to generate unique destination filename for manual import: {Destination}", destinationPath);
-            }
+            // If source and destination are the same file, skip move/copy (file already in place)
+            var sourceNorm = Path.GetFullPath(item.FullPath);
+            var destNorm   = Path.GetFullPath(destinationPath);
+            var alreadyInPlace = string.Equals(sourceNorm, destNorm, StringComparison.OrdinalIgnoreCase);
 
-            // Move or copy the file
-            try
+            if (!alreadyInPlace)
             {
-                _logger.LogDebug("Attempting to {Operation} file from {Source} to {Destination}", inputMode == "move" ? "move" : "copy", item.FullPath, destinationPath);
-                if (inputMode == "move")
+                // If destination file exists (and is a different file), create a unique filename
+                var preUniquePath = destinationPath;
+                try
                 {
-                    System.IO.File.Move(item.FullPath, destinationPath, overwrite: false);
-                    _logger.LogInformation("Moved file {Source} to {Destination}", item.FullPath, destinationPath);
+                    _logger.LogDebug("Resolving unique destination for manual import: {Dest}, usedDestinations count: {Count}", destinationPath, usedDestinations?.Count ?? 0);
+                    destinationPath = FileUtils.GetUniqueDestinationPath(destinationPath, System.IO.File.Exists, usedDestinations);
+                    if (preUniquePath != destinationPath)
+                    {
+                        _logger.LogDebug("Unique destination changed from {Old} to {New}", preUniquePath, destinationPath);
+                    }
                 }
-                else
+                catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException) {
+                    _logger.LogWarning(ex, "Failed to generate unique destination filename for manual import: {Destination}", destinationPath);
+                }
+
+                // Move or copy the file
+                try
                 {
-                    System.IO.File.Copy(item.FullPath, destinationPath, overwrite: false);
-                    _logger.LogInformation("Copied file {Source} to {Destination}", item.FullPath, destinationPath);
+                    _logger.LogDebug("Attempting to {Operation} file from {Source} to {Destination}", inputMode == "move" ? "move" : "copy", item.FullPath, destinationPath);
+                    if (inputMode == "move")
+                    {
+                        System.IO.File.Move(item.FullPath, destinationPath, overwrite: false);
+                        _logger.LogInformation("Moved file {Source} to {Destination}", item.FullPath, destinationPath);
+                    }
+                    else
+                    {
+                        System.IO.File.Copy(item.FullPath, destinationPath, overwrite: false);
+                        _logger.LogInformation("Copied file {Source} to {Destination}", item.FullPath, destinationPath);
+                    }
+                }
+                catch (IOException ex) when (System.IO.File.Exists(destinationPath))
+                {
+                    _logger.LogWarning(ex, "Destination file already exists despite unique name generation: {Destination}", destinationPath);
+                    throw;
                 }
             }
-            catch (IOException ex) when (System.IO.File.Exists(destinationPath))
+            else
             {
-                _logger.LogWarning(ex, "Destination file already exists despite unique name generation: {Destination}", destinationPath);
-                throw;
+                _logger.LogInformation("Source and destination are the same file, skipping move/copy: {Path}", destinationPath);
             }
             // Write ASIN to embedded file tags (non-critical — failure is logged, not thrown)
             if (!string.IsNullOrWhiteSpace(audiobook.Asin))

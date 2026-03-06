@@ -2031,6 +2031,19 @@ namespace Listenarr.Api.Controllers
         }
 
         /// <summary>
+        /// Remove a single AudiobookFile record from this audiobook without deleting the physical file.
+        /// </summary>
+        [HttpDelete("{id}/files/{fileId}")]
+        public async Task<IActionResult> UnlinkFile(int id, int fileId)
+        {
+            var file = await _dbContext.AudiobookFiles.FirstOrDefaultAsync(f => f.Id == fileId && f.AudiobookId == id);
+            if (file == null) return NotFound(new { message = "File not found" });
+            _dbContext.AudiobookFiles.Remove(file);
+            await _dbContext.SaveChangesAsync();
+            return Ok(new { message = "File unlinked from audiobook" });
+        }
+
+        /// <summary>
         /// Scan the filesystem for files belonging to this audiobook, extract metadata (ffprobe) and persist AudiobookFile records.
         /// Optional body: { path: "C:\\some\\folder" } to scan a specific folder instead of the configured output path.
         /// </summary>

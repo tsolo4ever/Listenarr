@@ -1029,6 +1029,12 @@ class ApiService {
     })
   }
 
+  async unlinkAudiobookFile(audiobookId: number, fileId: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/library/${audiobookId}/files/${fileId}`, {
+      method: 'DELETE',
+    })
+  }
+
   async rescanAudiobookMetadata(
     id: number,
   ): Promise<{ message: string; audiobookId: number; source?: string; asin?: string; region?: string }> {

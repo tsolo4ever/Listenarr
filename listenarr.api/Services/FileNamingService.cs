@@ -416,11 +416,16 @@ namespace Listenarr.Api.Services
                 .Union(new[] { '<', '>', ':', '"', '\\', '|', '?', '*' })
                 .ToHashSet();
 
-            // Replace invalid characters with underscore
+            // Colons are stripped (not replaced) so "Title: Subtitle" → "Title Subtitle"
+            // Other invalid characters are replaced with underscore
             var sanitized = new StringBuilder();
             foreach (var c in pathComponent)
             {
-                if (invalidChars.Contains(c))
+                if (c == ':')
+                {
+                    // skip — trailing space will be trimmed below
+                }
+                else if (invalidChars.Contains(c))
                 {
                     sanitized.Append('_');
                 }

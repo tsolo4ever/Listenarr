@@ -235,6 +235,10 @@ watch(
     if (!open) return
     if (!props.rootFolder?.id) return
 
+    // Ensure stores are populated (may not be loaded yet if opened from a cold page)
+    if (!configStore.applicationSettings) await configStore.loadApplicationSettings()
+    if (!rootFoldersStore.folders.length) await rootFoldersStore.load()
+
     try {
       const saved = await apiService.getSavedUnmatchedFiles(props.rootFolder.id)
       if (saved.items.length > 0) {

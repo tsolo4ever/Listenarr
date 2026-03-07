@@ -367,6 +367,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
       const enrichedNarrators = (raw.narrators ?? []).map((n) => n?.name ?? '').filter(Boolean)
       const enrichedGenres = (raw.genres ?? []).map((g) => g?.name ?? '').filter(Boolean)
       const seriesItem = raw.series?.[0]
+      const dateStr = raw.publishDate ?? raw.releaseDate
 
       // Combine title + subtitle from Audimeta so each book in a series gets a unique name.
       // Audimeta often returns title="The Land" + subtitle="Founding" separately; combining
@@ -390,7 +391,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
         ...(enrichedGenres.length > 0 ? { genres: enrichedGenres } : {}),
         ...(seriesItem?.name ? { series: seriesItem.name, seriesNumber: seriesItem.position, seriesAsin: seriesItem.asin } : {}),
         ...(raw.lengthMinutes ? { runtime: raw.lengthMinutes * 60 } : {}),
-        ...(raw.publishDate ? { publishYear: raw.publishDate.substring(0, 4), publishedDate: raw.publishDate } : {}),
+        ...(dateStr ? { publishYear: dateStr.substring(0, 4), publishedDate: dateStr } : {}),
         ...(raw.imageUrl ? { imageUrl: raw.imageUrl } : {}),
         ...(raw.language ? { language: raw.language } : {}),
         ...(raw.publisher ? { publisher: raw.publisher } : {}),

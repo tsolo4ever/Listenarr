@@ -57,7 +57,7 @@ function pickBestMatch(results: SearchResult[], detectedAuthor?: string): Search
     const match = resultAuthor && (resultAuthor.includes(needle) || needle.includes(resultAuthor))
     return { r, match }
   })
-  return scored.find((s) => s.match)?.r ?? results[0] ?? null
+  return scored.find((s) => s.match)?.r ?? null
 }
 
 function unmatchedToImportItem(item: UnmatchedFileItem): LibraryImportItem {

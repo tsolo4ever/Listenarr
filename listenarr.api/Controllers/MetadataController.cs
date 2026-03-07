@@ -12,6 +12,7 @@ namespace Listenarr.Api.Controllers
         private readonly IAudiobookMetadataService _metadataService;
         private readonly ILogger<MetadataController> _logger;
         private readonly AudimetaService _audimetaService;
+        private readonly IAudnexusService _audnexusService;
         private readonly IImageCacheService _imageCacheService;
         private readonly IMemoryCache _cache;
         private readonly IAudiobookRepository _audiobookRepository;
@@ -20,6 +21,7 @@ namespace Listenarr.Api.Controllers
         public MetadataController(
             IAudiobookMetadataService metadataService,
             AudimetaService audimetaService,
+            IAudnexusService audnexusService,
             IImageCacheService imageCacheService,
             IMemoryCache cache,
             IAudiobookRepository audiobookRepository,
@@ -28,6 +30,7 @@ namespace Listenarr.Api.Controllers
         {
             _metadataService = metadataService;
             _audimetaService = audimetaService;
+            _audnexusService = audnexusService;
             _imageCacheService = imageCacheService;
             _cache = cache;
             _audiobookRepository = audiobookRepository;
@@ -99,6 +102,58 @@ namespace Listenarr.Api.Controllers
             }
             catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException) {
                 _logger.LogError(ex, "Error fetching audimeta metadata for ASIN: {Asin}", asin);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Get audiobook metadata directly from Audnexus by ASIN.
+        /// Returns AudimetaBookResponse shape for consistency with the audimeta endpoint.
+        /// </summary>
+        [HttpGet("audnexus/{asin}")]
+        [ProducesResponseType(typeof(AudimetaBookResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<AudimetaBookResponse>> GetAudnexusMetadata(
+            string asin,
+            [FromQuery] string region = "us")
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(asin))
+                    return BadRequest("ASIN parameter is required");
+
+                var result = await _audnexusService.GetBookMetadataAsync(asin, region, seedAuthors: true, update: false);
+                if (result == null)
+                    return NotFound($"No metadata found for ASIN: {asin}");
+
+                var converted = new AudimetaBookResponse
+                {
+                    Asin = result.Asin,
+                    Title = result.Title,
+                    Subtitle = result.Subtitle,
+                    ImageUrl = result.Image,
+                    Publisher = result.PublisherName,
+                    LengthMinutes = result.RuntimeLengthMin,
+                    Language = result.Language,
+                    Explicit = result.IsAdult ?? false,
+                    Isbn = result.Isbn,
+                    ReleaseDate = result.ReleaseDate,
+                    Description = result.Description ?? result.Summary,
+                    Authors = result.Authors?.Select(a => new AudimetaAuthor { Asin = a.Asin, Name = a.Name }).ToList(),
+                    Narrators = result.Narrators?.Select(n => new AudimetaNarrator { Name = n.Name }).ToList(),
+                    Genres = result.Genres?.Select(g => new AudimetaGenre { Asin = g.Asin, Name = g.Name, Type = g.Type }).ToList(),
+                    Series = result.SeriesPrimary != null
+                        ? new List<AudimetaSeries> { new() { Asin = result.SeriesPrimary.Asin, Name = result.SeriesPrimary.Name, Position = result.SeriesPrimary.Position } }
+                        : null,
+                };
+
+                return Ok(converted);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException)
+            {
+                _logger.LogError(ex, "Error fetching Audnexus metadata for ASIN: {Asin}", asin);
                 return StatusCode(500, "Internal server error");
             }
         }

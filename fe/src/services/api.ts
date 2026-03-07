@@ -20,6 +20,7 @@ import type {
   SearchSortBy,
   SearchSortDirection,
   AudimetaSearchResponse,
+  AudimetaBookResponse,
   AudibleBookMetadata,
   ManualImportPreviewResponse,
   ManualImportRequest,
@@ -927,6 +928,10 @@ class ApiService {
   // Audible Metadata API
   async getAudibleMetadata<T>(asin: string): Promise<T> {
     return this.request<T>(`/metadata/${asin}`)
+  }
+
+  async getAudnexusMetadata(asin: string): Promise<AudimetaBookResponse> {
+    return this.request<AudimetaBookResponse>(`/metadata/audnexus/${asin}`)
   }
 
   // Library API

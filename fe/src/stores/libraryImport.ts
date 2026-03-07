@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { apiService } from '@/services/api'
 import { signalRService } from '@/services/signalr'
 import { logger } from '@/utils/logger'
-import type { SearchResult, AudibleBookMetadata, UnmatchedFileItem } from '@/types'
+import type { SearchResult, AudibleBookMetadata, UnmatchedFileItem, AudimetaBookResponse } from '@/types'
 
 export interface LibraryImportItem {
   id: string            // = fullPath (unique key)
@@ -347,19 +347,27 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     const base = matchToMetadata(match)
     if (!match.asin) return base
     try {
-      type AudimetaPayload = {
-        title?: string
-        subtitle?: string
-        authors?: { name?: string }[]
-        narrators?: { name?: string }[]
-      }
       const resp = await apiService.getAudibleMetadata<
-        { source?: string; metadata?: AudimetaPayload } | AudimetaPayload
+        { source?: string; metadata?: AudimetaBookResponse } | AudimetaBookResponse
       >(match.asin)
-      const raw: AudimetaPayload =
-        resp && 'metadata' in resp && resp.metadata ? resp.metadata : (resp as AudimetaPayload)
+      let raw: AudimetaBookResponse =
+        resp && 'metadata' in resp && resp.metadata ? resp.metadata : (resp as AudimetaBookResponse)
+
+      // Audnexus fallback: if primary source returned no title, try Audnexus directly
+      if (!raw.title) {
+        try {
+          const audnexRaw = await apiService.getAudnexusMetadata(match.asin)
+          if (audnexRaw?.title) raw = audnexRaw
+        } catch {
+          // non-fatal — continue with whatever primary returned
+        }
+      }
+
       const enrichedAuthors = (raw.authors ?? []).map((a) => a?.name ?? '').filter(Boolean)
       const enrichedNarrators = (raw.narrators ?? []).map((n) => n?.name ?? '').filter(Boolean)
+      const enrichedGenres = (raw.genres ?? []).map((g) => g?.name ?? '').filter(Boolean)
+      const seriesItem = raw.series?.[0]
+
       // Combine title + subtitle from Audimeta so each book in a series gets a unique name.
       // Audimeta often returns title="The Land" + subtitle="Founding" separately; combining
       // them produces "The Land: Founding" which generates a unique path per book.
@@ -373,11 +381,19 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
         && !rawTitle.toLowerCase().includes(rawSubtitle.toLowerCase())
           ? `${rawTitle}: ${rawSubtitle}`
           : rawTitle || base.title
+
       return {
         ...base,
         ...(combinedTitle ? { title: combinedTitle, subtitle: rawSubtitle || base.subtitle } : {}),
         ...(enrichedAuthors.length > 0 ? { authors: enrichedAuthors } : {}),
         ...(enrichedNarrators.length > 0 ? { narrators: enrichedNarrators } : {}),
+        ...(enrichedGenres.length > 0 ? { genres: enrichedGenres } : {}),
+        ...(seriesItem?.name ? { series: seriesItem.name, seriesNumber: seriesItem.position, seriesAsin: seriesItem.asin } : {}),
+        ...(raw.lengthMinutes ? { runtime: raw.lengthMinutes * 60 } : {}),
+        ...(raw.publishDate ? { publishYear: raw.publishDate.substring(0, 4), publishedDate: raw.publishDate } : {}),
+        ...(raw.imageUrl ? { imageUrl: raw.imageUrl } : {}),
+        ...(raw.language ? { language: raw.language } : {}),
+        ...(raw.publisher ? { publisher: raw.publisher } : {}),
       }
     } catch {
       return base

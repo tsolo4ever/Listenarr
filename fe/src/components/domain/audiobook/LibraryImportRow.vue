@@ -77,9 +77,25 @@
         <div class="search-input-wrap">
           <input
             ref="searchInputEl"
-            v-model="searchQuery"
-            class="search-input"
-            placeholder="Search by title or enter ASIN…"
+            v-model="searchAsin"
+            class="search-input search-input-asin"
+            placeholder="ASIN"
+            @input="onSearchInput"
+            @keydown.escape="showSearch = false"
+          />
+          <span class="search-divider">|</span>
+          <input
+            v-model="searchTitle"
+            class="search-input search-input-title"
+            placeholder="Title"
+            @input="onSearchInput"
+            @keydown.escape="showSearch = false"
+          />
+          <span class="search-divider">|</span>
+          <input
+            v-model="searchAuthor"
+            class="search-input search-input-author"
+            placeholder="Author"
             @input="onSearchInput"
             @keydown.escape="showSearch = false"
           />
@@ -106,7 +122,7 @@
         </div>
 
         <div v-else-if="hasSearched && searchResults.length === 0" class="search-no-results">
-          No results for "{{ searchQuery }}"
+          No results found
         </div>
       </div>
     </td>
@@ -125,7 +141,9 @@ const props = defineProps<{ item: LibraryImportItem }>()
 const store = useLibraryImportStore()
 
 const showSearch = ref(false)
-const searchQuery = ref(props.item.detectedAsin ?? props.item.detectedTitle ?? props.item.folderName)
+const searchAsin = ref(props.item.detectedAsin ?? '')
+const searchTitle = ref(props.item.detectedTitle ?? props.item.folderName)
+const searchAuthor = ref(props.item.detectedAuthor ?? '')
 const searchResults = ref<SearchResult[]>([])
 const isLocalSearching = ref(false)
 const hasSearched = ref(false)
@@ -155,12 +173,14 @@ function onSearchInput() {
 }
 
 async function runSearch() {
-  const q = searchQuery.value.trim()
-  if (!q) return
+  const asin = searchAsin.value.trim()
+  const title = searchTitle.value.trim()
+  const author = searchAuthor.value.trim()
+  if (!asin && !title && !author) return
   isLocalSearching.value = true
   hasSearched.value = false
   try {
-    const results = await store.searchItem(props.item.id, q)
+    const results = await store.searchItem(props.item.id, { asin, title, author })
     searchResults.value = results ?? []
     hasSearched.value = true
   } finally {
@@ -369,12 +389,32 @@ function applyMatch(result: SearchResult) {
 }
 
 .search-input {
-  flex: 1;
   background: transparent;
   border: none;
   outline: none;
   color: #e0e0e0;
   font-size: 0.82rem;
+  min-width: 0;
+}
+
+.search-input-asin {
+  width: 8rem;
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
+.search-input-title {
+  flex: 2;
+}
+
+.search-input-author {
+  flex: 1;
+}
+
+.search-divider {
+  color: #444;
+  flex-shrink: 0;
+  user-select: none;
 }
 
 .search-spinner {

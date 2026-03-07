@@ -331,16 +331,17 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
 
   // ─── Per-row manual search ────────────────────────────────────────────────
 
-  async function searchItem(id: string, query: string) {
+  async function searchItem(id: string, params: { title?: string; author?: string; asin?: string }) {
     const item = items.value[id]
     if (!item) return
 
     items.value[id] = { ...item, isSearching: true }
     try {
-      const isAsin = /^[A-Z0-9]{10}$/i.test(query.trim())
-      const results = await apiService.advancedSearch(
-        isAsin ? { asin: query.trim(), cap: 5 } : { title: query, cap: 5 },
-      )
+      const asin = params.asin?.trim()
+      const searchParams = asin && /^[A-Z0-9]{10}$/i.test(asin)
+        ? { asin, cap: 5 }
+        : { title: params.title?.trim(), author: params.author?.trim(), cap: 5 }
+      const results = await apiService.advancedSearch(searchParams)
       items.value[id] = { ...items.value[id], isSearching: false, hasSearched: true }
       return results
     } catch {

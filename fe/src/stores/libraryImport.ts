@@ -151,13 +151,19 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     try {
       const saved = await apiService.getSavedUnmatchedFiles(id)
       if (saved.lastScannedAt) lastScannedAt.value = saved.lastScannedAt
+      const persisted = _loadPersistedMatches(id)
       const newItems: Record<string, LibraryImportItem> = {}
       for (const item of saved.items) {
         const existing = items.value[item.fullPath]
-        // Preserve match/search state if item already exists
-        newItems[item.fullPath] = existing
-          ? { ...unmatchedToImportItem(item), selectedMatch: existing.selectedMatch, hasSearched: existing.hasSearched, isSearching: false, selected: existing.selected }
-          : unmatchedToImportItem(item)
+        const p = persisted[item.fullPath]
+        // Priority: in-memory (already loaded this session) → localStorage → fresh
+        if (existing) {
+          newItems[item.fullPath] = { ...unmatchedToImportItem(item), selectedMatch: existing.selectedMatch, hasSearched: existing.hasSearched, isSearching: false, selected: existing.selected }
+        } else if (p) {
+          newItems[item.fullPath] = { ...unmatchedToImportItem(item), selectedMatch: p.selectedMatch, hasSearched: p.hasSearched, isSearching: false, selected: p.selected }
+        } else {
+          newItems[item.fullPath] = unmatchedToImportItem(item)
+        }
       }
       items.value = newItems
       if (saved.items.length > 0) scanStatus.value = 'done'
@@ -170,6 +176,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     rootFolderId.value = id
     scanStatus.value = 'scanning'
     scanError.value = null
+    try { localStorage.removeItem(_storageKey(id)) } catch { /* non-fatal */ }
     items.value = {}
 
     let jobId = ''
@@ -224,6 +231,37 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     items.value = newItems
   }
 
+  // ─── localStorage persistence ──────────────────────────────────────────────
+
+  type PersistedEntry = { selectedMatch: SearchResult | null; hasSearched: boolean; selected: boolean }
+
+  function _storageKey(folderId: number): string {
+    return `listenarr-import-matches-${folderId}`
+  }
+
+  function _persistMatches(): void {
+    if (!rootFolderId.value) return
+    const state: Record<string, PersistedEntry> = {}
+    for (const [path, item] of Object.entries(items.value)) {
+      state[path] = { selectedMatch: item.selectedMatch, hasSearched: item.hasSearched, selected: item.selected }
+    }
+    try {
+      localStorage.setItem(_storageKey(rootFolderId.value), JSON.stringify(state))
+    } catch {
+      // non-fatal — quota exceeded or private browsing
+    }
+  }
+
+  function _loadPersistedMatches(folderId: number): Record<string, PersistedEntry> {
+    try {
+      const raw = localStorage.getItem(_storageKey(folderId))
+      if (!raw) return {}
+      return JSON.parse(raw) as Record<string, PersistedEntry>
+    } catch {
+      return {}
+    }
+  }
+
   // ─── Queue Processing ─────────────────────────────────────────────────────
 
   function startProcessing() {
@@ -276,9 +314,13 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
         ...items.value,
         [id]: { ...current, isSearching: false, hasSearched: true, selectedMatch: first, selected: first !== null },
       }
+      _persistMatches()
     } catch {
       const current = items.value[id]
-      if (current) items.value = { ...items.value, [id]: { ...current, isSearching: false, hasSearched: true } }
+      if (current) {
+        items.value = { ...items.value, [id]: { ...current, isSearching: false, hasSearched: true } }
+        _persistMatches()
+      }
     }
 
     lookupQueue.value = lookupQueue.value.slice(1)
@@ -313,12 +355,14 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     const item = items.value[id]
     if (!item) return
     items.value[id] = { ...item, selectedMatch: match, hasSearched: true, selected: true }
+    _persistMatches()
   }
 
   function clearMatch(id: string) {
     const item = items.value[id]
     if (!item) return
     items.value[id] = { ...item, selectedMatch: null, selected: false }
+    _persistMatches()
   }
 
   // ─── Selection ────────────────────────────────────────────────────────────
@@ -327,6 +371,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     const item = items.value[id]
     if (!item) return
     items.value[id] = { ...item, selected: !item.selected }
+    _persistMatches()
   }
 
   function toggleSelectAll() {
@@ -336,6 +381,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
         items.value[item.id] = { ...item, selected: !allSelected }
       }
     }
+    _persistMatches()
   }
 
   // ─── Import ───────────────────────────────────────────────────────────────
@@ -463,6 +509,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
         const updated = { ...items.value }
         delete updated[item.id]
         items.value = updated
+        _persistMatches()
         imported++
       } catch (e) {
         const msg = `${item.folderName}: ${(e as Error)?.message ?? 'Import failed'}`

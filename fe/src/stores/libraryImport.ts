@@ -305,7 +305,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     try {
       const searchParams = item.detectedAsin
         ? { asin: item.detectedAsin, cap: 5 }
-        : { title: buildSearchTitle(item), cap: 5 }
+        : { title: buildSearchTitle(item), author: item.detectedAuthor, cap: 5 }
       const results = await apiService.advancedSearch(searchParams)
       metadataFetchCount.value++
       const first = pickBestMatch(results, item.detectedAuthor)

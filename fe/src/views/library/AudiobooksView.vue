@@ -194,7 +194,6 @@
                   :class="{ loaded: authorImageLoaded[collection.name] }"
                 ></div>
                 <img
-                  v-if="getAuthorImageUrl(collection)"
                   class="audiobook-poster author-cover lazy-img"
                   :class="{ loaded: authorImageLoaded[collection.name] }"
                   :src="
@@ -1052,6 +1051,7 @@ const audiobooks = computed(() => filteredAndSortedAudiobooks.value)
 // Reactive map of fetched author cover overrides (keyed by author name)
 const authorCoverOverrides = reactive<Record<string, string>>({})
 const authorCoverLoading = reactive<Record<string, boolean>>({})
+const authorCoverNotFound = new Set<string>()
 const authorImageLoaded = reactive<Record<string, boolean>>({})
 
 function isPlaceholderCoverUrl(url: string | undefined): boolean {
@@ -1110,22 +1110,29 @@ function handleAuthorImageError(authorName: string, event: Event) {
 async function ensureAuthorCover(authorName: string) {
   if (!authorName) return
   if (authorCoverOverrides[authorName]) return
+  if (authorCoverNotFound.has(authorName)) return
   if (authorCoverLoading[authorName]) return
   authorCoverLoading[authorName] = true
   try {
     if (typeof apiService.getAuthorLookup !== 'function') return
     const info = await apiService.getAuthorLookup(authorName)
-    if (!info) return
+    if (!info) {
+      authorCoverNotFound.add(authorName)
+      return
+    }
     if (info.cachedPath) {
       authorCoverOverrides[authorName] = info.cachedPath
     } else if (info.asin) {
       authorCoverOverrides[authorName] = buildApiPath(`/images/${encodeURIComponent(info.asin)}`)
+    } else {
+      authorCoverNotFound.add(authorName)
     }
     try {
       await nextTick()
       observeLazyImages()
     } catch {}
   } catch (e: unknown) {
+    authorCoverNotFound.add(authorName)
     errorTracking.captureException(e as Error, {
       component: 'AudiobooksView',
       operation: 'ensureAuthorCover',
@@ -1316,6 +1323,8 @@ function observeAuthorCards() {
   }
 
   for (const card of cards) {
+    const name = card.dataset.authorName
+    if (name && (authorCoverOverrides[name] || authorCoverNotFound.has(name))) continue
     authorCardObserver.observe(card)
   }
 }
@@ -1405,6 +1414,7 @@ function clearFilters() {
   // Reset author image caches so images reload after clearing filters
   Object.keys(authorCoverOverrides).forEach((k) => delete authorCoverOverrides[k])
   Object.keys(authorImageLoaded).forEach((k) => delete authorImageLoaded[k])
+  authorCoverNotFound.clear()
   clearProtectedImages()
   nextTick(() => typeof observeLazyImages === 'function' && observeLazyImages())
 }

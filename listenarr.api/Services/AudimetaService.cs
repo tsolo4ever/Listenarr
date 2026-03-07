@@ -193,134 +193,15 @@ namespace Listenarr.Api.Services
 
         public virtual async Task<AudimetaSearchResponse?> SearchByTitleAndAuthorPagedAsync(string title, string author, int page = 1, int limit = 50, string region = "us", string? language = null)
         {
-            // Prefer author-specific endpoint when an author is provided: lookup author ASIN then request their books
-            if (string.IsNullOrWhiteSpace(author))
-            {
-                var query = title;
-                var url = $"{BASE_URL}/search?products_sort_by=Title&cache=true&page={page}&limit={limit}&query={Uri.EscapeDataString(query)}&region={region}";
-                _logger.LogInformation("Searching audimeta.de (search) by title+author (no author provided): {Url}", url);
-                return await ExecuteSearchAsync(url, $"{title} (page {page})");
-            }
-
-            try
-            {
-                // 1) Lookup author ASIN via /author?name=
-                var authorLookupUrl = $"{BASE_URL}/author?cache=true&region={region}&name={Uri.EscapeDataString(author)}";
-                if (!string.IsNullOrWhiteSpace(language)) authorLookupUrl += $"&language={Uri.EscapeDataString(language)}";
-                _logger.LogInformation("Looking up author on audimeta.de: {Url}", authorLookupUrl);
-                var lookupResp = await GetWithTimeoutAsync(authorLookupUrl);
-                if (lookupResp == null)
-                {
-                    _logger.LogWarning("Author lookup request timed out for author {Author}", author);
-                    var fallbackUrl = $"{BASE_URL}/search?products_sort_by=Title&cache=true&page={page}&limit={limit}&query={Uri.EscapeDataString(title + " " + author)}&region={region}";
-                    return await ExecuteSearchAsync(fallbackUrl, $"{title} by {author} (page {page})");
-                }
-                if (!lookupResp.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("Author lookup returned status {Status} for author {Author}", lookupResp.StatusCode, author);
-                    // fallback to generic search
-                    var fallbackUrl = $"{BASE_URL}/search?products_sort_by=Title&cache=true&page={page}&limit={limit}&query={Uri.EscapeDataString(title + " " + author)}&region={region}";
-                    return await ExecuteSearchAsync(fallbackUrl, $"{title} by {author} (page {page})");
-                }
-
-                var lookupJson = await lookupResp.Content.ReadAsStringAsync();
-                string? authorAsin = null;
-                try
-                {
-                    // Response may be an array or envelope; try parse as array and pick first item's asin
-                    var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    if (!string.IsNullOrWhiteSpace(lookupJson) && lookupJson.TrimStart()[0] == '[')
-                    {
-                        var list = JsonSerializer.Deserialize<List<AuthorLookupItem>>(lookupJson, opts);
-                        authorAsin = list?.FirstOrDefault()?.Asin;
-                    }
-                    else
-                    {
-                        var doc = JsonSerializer.Deserialize<AuthorLookupEnvelope>(lookupJson, opts);
-                        authorAsin = doc?.Asin ?? doc?.Results?.FirstOrDefault()?.Asin;
-                    }
-                }
-                catch (JsonException ex)
-                {
-                    _logger.LogWarning(ex, "Failed to parse author lookup JSON for author {Author}", author);
-                }
-
-                if (string.IsNullOrWhiteSpace(authorAsin))
-                {
-                    _logger.LogWarning("No author ASIN found for author '{Author}', falling back to search endpoint", author);
-                    var fallbackUrl2 = $"{BASE_URL}/search?products_sort_by=Title&cache=true&page={page}&limit={limit}&query={Uri.EscapeDataString(title + " " + author)}&region={region}";
-                    return await ExecuteSearchAsync(fallbackUrl2, $"{title} by {author} (page {page})");
-                }
-
-                // 2) Fetch author's books
-                var booksUrl = $"{BASE_URL}/author/books/{Uri.EscapeDataString(authorAsin)}?limit={limit}&page={page}&cache=true&region={region}";
-                if (!string.IsNullOrWhiteSpace(language)) booksUrl += $"&language={Uri.EscapeDataString(language)}";
-                _logger.LogInformation("Fetching books for author ASIN {AuthorAsin}: {Url}", authorAsin, booksUrl);
-                var booksResult = await ExecuteSearchAsync(booksUrl, $"author:{author} (authorAsin:{authorAsin}) page {page}");
-
-                if (booksResult == null || booksResult.Results == null) return booksResult;
-
-                // 3) Apply server-side filtering using provided title, isbn, asin, language if present
-                var filtered = booksResult.Results.AsEnumerable();
-
-                // If the title parameter encodes an ISBN (e.g. "ISBN:1234567890"), extract it
-                string? isbnFromTitle = null;
-                if (!string.IsNullOrWhiteSpace(title) && title.Trim().StartsWith("ISBN:", StringComparison.OrdinalIgnoreCase))
-                {
-                    isbnFromTitle = title.Trim().Substring(5).Trim();
-                }
-
-                if (!string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(isbnFromTitle))
-                {
-                    var t = title.Trim();
-                    filtered = filtered.Where(r => !string.IsNullOrWhiteSpace(r.Title) && r.Title.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0);
-                }
-
-                // If title looks like an ASIN, prefer exact ASIN match
-                if (!string.IsNullOrWhiteSpace(title) && title.Trim().StartsWith("B0", StringComparison.OrdinalIgnoreCase) && title.Trim().Length >= 10)
-                {
-                    var possibleAsin = title.Trim();
-                    filtered = filtered.Where(r => string.Equals(r.Asin, possibleAsin, StringComparison.OrdinalIgnoreCase));
-                }
-
-                // If ISBN was provided via title token, try to resolve by fetching metadata per candidate
-                if (!string.IsNullOrWhiteSpace(isbnFromTitle))
-                {
-                    var candidates = filtered.ToList();
-                    var matched = new List<AudimetaSearchResult>();
-                    foreach (var c in candidates)
-                    {
-                        try
-                        {
-                            if (string.IsNullOrWhiteSpace(c.Asin)) continue;
-                            var meta = await GetBookMetadataAsync(c.Asin, region, true, language);
-                            if (meta != null && !string.IsNullOrWhiteSpace(meta.Isbn) && string.Equals(meta.Isbn.Trim(), isbnFromTitle.Trim(), StringComparison.OrdinalIgnoreCase))
-                            {
-                                matched.Add(c);
-                            }
-                        }
-                        catch (Exception caughtEx_1) when (caughtEx_1 is not OperationCanceledException && caughtEx_1 is not OutOfMemoryException && caughtEx_1 is not StackOverflowException) { 
-                            System.Diagnostics.Debug.WriteLine("Suppressed non-fatal exception in catch block.");
-                        }
-                    }
-
-                    filtered = matched;
-                }
-
-                // Language filter (use explicit language param when provided)
-                if (!string.IsNullOrWhiteSpace(language))
-                {
-                    var lang = language.Trim().ToLowerInvariant();
-                    filtered = filtered.Where(r => !string.IsNullOrWhiteSpace(r.Language) && r.Language.Trim().ToLowerInvariant() == lang);
-                }
-
-                var finalList = filtered.ToList();
-                return new AudimetaSearchResponse { Results = finalList, TotalResults = finalList.Count };
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException) {
-                _logger.LogError(ex, "Error executing author-based search for: {Title} / {Author}", title, author);
-                return null;
-            }
+            // Use audimeta's native title+author search params — simpler and more accurate than
+            // the author-ASIN-lookup + local-filter approach. Audimeta /search uses 0-based pages.
+            var pageIndex = Math.Max(0, page - 1);
+            var url = $"{BASE_URL}/search?products_sort_by=Relevance&cache=true&page={pageIndex}&limit={limit}&region={region}";
+            if (!string.IsNullOrWhiteSpace(title)) url += $"&title={Uri.EscapeDataString(title)}";
+            if (!string.IsNullOrWhiteSpace(author)) url += $"&author={Uri.EscapeDataString(author)}";
+            if (!string.IsNullOrWhiteSpace(language)) url += $"&language={Uri.EscapeDataString(language)}";
+            _logger.LogInformation("Searching audimeta.de by title+author: {Url}", url);
+            return await ExecuteSearchAsync(url, $"{title} by {author} (page {page})");
         }
 
         public virtual async Task<AudimetaSearchResponse?> SearchByAuthorAsync(string author, int page = 1, int limit = 50, string region = "us", string? language = null)

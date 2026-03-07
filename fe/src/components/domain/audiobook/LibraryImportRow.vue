@@ -80,7 +80,7 @@
             v-model="searchAsin"
             class="search-input search-input-asin"
             placeholder="ASIN"
-            @input="onSearchInput"
+            @input="onAsinInput"
             @keydown.escape="showSearch = false"
           />
           <span class="search-divider">|</span>
@@ -164,6 +164,21 @@ async function toggleSearch() {
     await nextTick()
     searchInputEl.value?.focus()
     searchInputEl.value?.select()
+    // Auto-run with pre-populated values
+    if (searchAsin.value.trim() || searchTitle.value.trim()) {
+      runSearch()
+    }
+  }
+}
+
+function onAsinInput() {
+  const asin = searchAsin.value.trim()
+  // Fire immediately once we have a complete ASIN, no debounce needed
+  if (asin && /^[A-Z0-9]{10}$/i.test(asin)) {
+    if (debounceTimer) clearTimeout(debounceTimer)
+    runSearch()
+  } else {
+    onSearchInput()
   }
 }
 

@@ -176,8 +176,6 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     rootFolderId.value = id
     scanStatus.value = 'scanning'
     scanError.value = null
-    try { localStorage.removeItem(_storageKey(id)) } catch { /* non-fatal */ }
-    items.value = {}
 
     let jobId = ''
     let settled = false

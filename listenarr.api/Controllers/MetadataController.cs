@@ -162,7 +162,7 @@ namespace Listenarr.Api.Controllers
                                             cachedEntry.CachedPath = "/" + diskPath.TrimStart('/');
                                             cachedEntry.Name = cachedEntry.Name ?? normalizedName;
                                             cachedEntry.NotFound = false;
-                                            _cache.Set(cacheKey, cachedEntry, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromHours(12) });
+                                            _cache.Set(cacheKey, cachedEntry, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromHours(1) });
 
                                             return Ok(new
                                             {
@@ -243,7 +243,7 @@ namespace Listenarr.Api.Controllers
                         {
                             NotFound = true,
                             Name = normalizedName
-                        }, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromHours(6) });
+                        }, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromMinutes(30) });
 
                         return NotFound("Author not found");
                     }
@@ -277,7 +277,7 @@ namespace Listenarr.Api.Controllers
                     Image = resolvedImage,
                     CachedPath = cached,
                     NotFound = false
-                }, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromHours(12) });
+                }, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromHours(1) });
 
                 return Ok(result);
             }

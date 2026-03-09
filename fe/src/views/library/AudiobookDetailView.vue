@@ -286,6 +286,7 @@
                 <PhFileAudio />
                 <span class="file-name">{{ getFileName(f.path) }}</span>
                 <span v-if="f.exists === false" class="badge-missing">File missing</span>
+                <span v-if="duplicateFileIds.has(f.id)" class="badge-duplicate">Duplicate</span>
                 <small class="file-meta">• {{ f.format ? f.format.toUpperCase() : '' }}
                   {{ f.durationSeconds ? '• ' + formatDuration(f.durationSeconds) : '' }}</small>
               </div>
@@ -659,6 +660,24 @@ const assignedProfileName = computed(() => {
   if (!id) return null
   const p = qualityProfiles.value.find((q) => q.id === id)
   return p ? p.name : null
+})
+
+const duplicateFileIds = computed(() => {
+  const files = audiobook.value?.files
+  if (!files || files.length < 2) return new Set<number>()
+  const seen = new Map<string, number>()
+  const dupes = new Set<number>()
+  for (const f of files) {
+    if (f.size == null || f.durationSeconds == null) continue
+    const key = `${f.size}|${f.durationSeconds}`
+    if (seen.has(key)) {
+      dupes.add(f.id)
+      dupes.add(seen.get(key)!)
+    } else {
+      seen.set(key, f.id)
+    }
+  }
+  return dupes
 })
 
 const primaryAsin = computed(() => {
@@ -2397,6 +2416,16 @@ a.identifier-link:hover {
   border-radius: 4px;
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
+  white-space: nowrap;
+}
+
+.badge-duplicate {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
   white-space: nowrap;
 }
 

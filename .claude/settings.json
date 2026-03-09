@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build listenarr.api/listenarr.api.csproj)",
+      "Bash(grep -v \"^$\")"
+    ]
+  }
+}

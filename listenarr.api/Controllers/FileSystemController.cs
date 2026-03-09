@@ -24,7 +24,8 @@ using Listenarr.Infrastructure.Models;
 namespace Listenarr.Api.Controllers;
 
 [ApiController]
-[Route("api/v{version:apiVersion}/[controller]")]
+[Route("api/v{version:apiVersion}/filesystem")]
+[Tags("File System")]
 public class FileSystemController : ControllerBase
 {
     private readonly ILogger<FileSystemController> _logger;
@@ -36,6 +37,11 @@ public class FileSystemController : ControllerBase
         _dbContext = dbContext;
     }
 
+    /// <summary>
+    /// Browse the server file system. Returns directories and files for a given path, or root drives if no path is provided.
+    /// </summary>
+    /// <param name="path">Directory path to browse. Leave empty to list root drives/directories.</param>
+    /// <returns>The current path, parent path, and a list of child items.</returns>
     [HttpGet("browse")]
     public ActionResult<FileSystemBrowseResponse> BrowseDirectory([FromQuery] string? path)
     {
@@ -119,6 +125,11 @@ public class FileSystemController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Validate a file-system path, checking whether it exists and is writable.
+    /// </summary>
+    /// <param name="path">The absolute directory path to validate.</param>
+    /// <returns>Validation result with existence and writability flags.</returns>
     [HttpGet("validate")]
     public ActionResult<FileSystemValidateResponse> ValidatePath([FromQuery] string path)
     {
@@ -284,6 +295,12 @@ public class FileSystemController : ControllerBase
         return Ok(new { deleted = true });
     }
 
+    /// <summary>
+    /// Check whether two paths reside on the same volume. Moving files across volumes will break hardlinks.
+    /// </summary>
+    /// <param name="sourcePath">Source directory path.</param>
+    /// <param name="destPath">Destination directory path.</param>
+    /// <returns>Volume comparison result including a warning if hardlinks will be broken.</returns>
     [HttpGet("check-volume")]
     public ActionResult<VolumeCheckResponse> CheckVolume([FromQuery] string? sourcePath, [FromQuery] string? destPath)
     {

@@ -13,8 +13,7 @@
       </div>
 
       <div v-if="props.settings" class="settings-form">
-        <FileManagementSection :settings="localSettings" @update:settings="val => Object.assign(localSettings, val)"></FileManagementSection>
-          <DownloadSettingsSection :settings="localSettings" @update:settings="val => Object.assign(localSettings, val)"></DownloadSettingsSection>
+        <DownloadSettingsSection :settings="localSettings" @update:settings="val => Object.assign(localSettings, val)"></DownloadSettingsSection>
 
           <FeaturesSection :settings="localSettings" @update:settings="val => Object.assign(localSettings, val)"></FeaturesSection>
 
@@ -33,7 +32,6 @@ import { computed } from 'vue'
 import type { ApplicationSettings, StartupConfig } from '@/types'
 // icons not used directly in this view
 
-import FileManagementSection from '@/components/settings/FileManagementSection.vue'
 import DownloadSettingsSection from '@/components/settings/DownloadSettingsSection.vue'
 import FeaturesSection from '@/components/settings/FeaturesSection.vue'
 import SearchSettingsSection from '@/components/settings/SearchSettingsSection.vue'

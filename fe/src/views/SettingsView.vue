@@ -68,6 +68,14 @@
             Discord Bot
           </button>
           <button
+            @click="router.push({ hash: '#media' })"
+            :class="{ active: activeTab === 'media' }"
+            class="tab-button"
+          >
+            <PhFolderSimple />
+            Media Management
+          </button>
+          <button
             @click="router.push({ hash: '#general' })"
             :class="{ active: activeTab === 'general' }"
             class="tab-button"
@@ -151,7 +159,7 @@
 
           <!-- Save button for sections that need it -->
           <button
-            v-if="activeTab === 'general' || activeTab === 'bot'"
+            v-if="activeTab === 'general' || activeTab === 'bot' || activeTab === 'media'"
             @click="saveSettings"
             :disabled="configStore.isLoading"
             class="btn btn-primary"
@@ -197,6 +205,13 @@
 
       <!-- Quality Profiles Tab -->
       <QualityProfilesTab v-if="activeTab === 'quality-profiles'" ref="qualityProfilesRef" />
+
+      <!-- Media Management Tab -->
+      <MediaManagementTab
+        v-if="activeTab === 'media' && settings"
+        :settings="settings"
+        @update:settings="(v) => { settings = v; configStore.applicationSettings = v }"
+      />
 
       <!-- General Settings Tab -->
       <GeneralSettingsTab
@@ -341,10 +356,12 @@ import IndexersTab from '@/views/settings/IndexersTab.vue'
 import { Modal, ModalHeader, ModalFooter } from '@/components/feedback' 
 import DeleteConfirmationModal from '@/components/feedback/DeleteConfirmationModal.vue' 
 import GeneralSettingsTab from '@/views/settings/GeneralSettingsTab.vue'
+import MediaManagementTab from '@/views/settings/MediaManagementTab.vue'
 import CustomSelect from '@/components/form/CustomSelect.vue'
 import PasswordInput from '@/components/form/PasswordInput.vue'
 import {
   PhFolder,
+  PhFolderSimple,
   PhListMagnifyingGlass,
   PhDownload,
   PhStar,
@@ -386,7 +403,7 @@ logger.debug(
   (globalThis as unknown as { __vitest?: unknown }).__vitest,
 )
 const activeTab = ref<
-  'rootfolders' | 'indexers' | 'clients' | 'quality-profiles' | 'notifications' | 'bot' | 'general'
+  'rootfolders' | 'indexers' | 'clients' | 'quality-profiles' | 'notifications' | 'bot' | 'media' | 'general'
 >('rootfolders')
 
 const mobileTabOptions = computed(() => [
@@ -396,6 +413,7 @@ const mobileTabOptions = computed(() => [
   { value: 'quality-profiles', label: 'Quality Profiles', icon: PhStar },
   { value: 'notifications', label: 'Notifications', icon: PhBell },
   { value: 'bot', label: 'Discord Bot', icon: PhGlobe },
+  { value: 'media', label: 'Media Management', icon: PhFolderSimple },
   { value: 'general', label: 'General Settings', icon: PhSliders },
   // Integrations removed
 ])

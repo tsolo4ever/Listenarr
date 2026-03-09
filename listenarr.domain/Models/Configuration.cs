@@ -117,6 +117,10 @@ namespace Listenarr.Domain.Models
         // {Quality} - Audio quality (e.g., "64kbps mp3")
         public string MultiFileNamingPattern { get; set; } = "{Title}-{DiskNumber:00}";
 
+        // How colons in titles/series are handled when building file/folder paths
+        // Options: "Delete" | "Dash" | "SpaceDash" | "SpaceDashSpace"
+        public string ColonReplacement { get; set; } = "Delete";
+
         public bool EnableMetadataProcessing { get; set; } = true;
         public bool EnableCoverArtDownload { get; set; } = true;
         public string AudnexusApiUrl { get; set; } = "https://api.audnex.us";

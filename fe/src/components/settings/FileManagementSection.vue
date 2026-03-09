@@ -61,6 +61,15 @@
           <option value="Hardlink/Copy">Hardlink/Copy</option>
         </select>
       </FormRow>
+
+      <FormRow label="Colon Replacement" help="How colons in titles and series names are handled when building file and folder paths.">
+        <select :value="settings.colonReplacement ?? 'Delete'" @change="e => updateField('colonReplacement', (e.target as HTMLSelectElement).value)">
+          <option value="Delete">Delete</option>
+          <option value="Dash">Replace with Dash (Title- Subtitle)</option>
+          <option value="SpaceDash">Replace with Space Dash (Title -Subtitle)</option>
+          <option value="SpaceDashSpace">Replace with Space Dash Space (Title - Subtitle)</option>
+        </select>
+      </FormRow>
     </div>
 
     <!-- Pattern Help Modal -->
@@ -73,32 +82,54 @@
           </button>
         </div>
         <div class="modal-body">
-          <div v-if="activePatternType === 'folder'" class="pattern-help">
-            <p><strong>Available Variables:</strong></p>
-            <ul>
-              <li><code>{Author}</code> - Author/narrator name</li>
-              <li><code>{Series}</code> - Series name</li>
-              <li><code>{Title}</code> - Book title</li>
-              <li><code>{SeriesNumber}</code> - Position in series</li>
-              <li><code>{Year}</code> - Publication year</li>
-            </ul>
-            <p class="example"><strong>Example:</strong> <code>{Author}/{Series}/{Title}</code></p>
-            <p class="result"><strong>Result:</strong> <code>Stephen King/The Dark Tower/The Gunslinger</code></p>
-          </div>
-          <div v-else-if="activePatternType === 'file'" class="pattern-help">
-            <p><strong>Available Variables:</strong></p>
-            <ul>
-              <li><code>{Author}</code> - Author/narrator name</li>
-              <li><code>{Series}</code> - Series name</li>
-              <li><code>{Title}</code> - Book title</li>
-              <li><code>{SeriesNumber}</code> - Position in series</li>
-              <li><code>{DiskNumber}</code> or <code>{DiskNumber:00}</code> - Disk/part number (00 = zero-padded)</li>
-              <li><code>{ChapterNumber}</code> or <code>{ChapterNumber:00}</code> - Chapter number (00 = zero-padded)</li>
-              <li><code>{Year}</code> - Publication year</li>
-              <li><code>{Quality}</code> - Audio quality (bitrate or format)</li>
-            </ul>
-            <p class="example"><strong>Example:</strong> <code>{Title}-{DiskNumber:00}</code></p>
-            <p class="result"><strong>Result:</strong> <code>The Gunslinger-01.m4b</code></p>
+          <div class="pattern-help">
+            <table class="token-table">
+              <thead>
+                <tr>
+                  <th>Token</th>
+                  <th>Example</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>{Author}</code></td>
+                  <td>Stephen King</td>
+                </tr>
+                <tr>
+                  <td><code>{Series}</code></td>
+                  <td>The Dark Tower</td>
+                </tr>
+                <tr>
+                  <td><code>{Title}</code></td>
+                  <td>The Gunslinger: Revised</td>
+                </tr>
+                <tr>
+                  <td><code>{SeriesNumber}</code></td>
+                  <td>1</td>
+                </tr>
+                <tr>
+                  <td><code>{Year}</code></td>
+                  <td>1982</td>
+                </tr>
+                <template v-if="activePatternType === 'file'">
+                  <tr>
+                    <td><code>{DiskNumber}</code> / <code>{DiskNumber:00}</code></td>
+                    <td>3 / 03</td>
+                  </tr>
+                  <tr>
+                    <td><code>{ChapterNumber}</code> / <code>{ChapterNumber:00}</code></td>
+                    <td>3 / 03</td>
+                  </tr>
+                  <tr>
+                    <td><code>{Quality}</code></td>
+                    <td>128kbps</td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <p class="token-note">
+              Colons in values are replaced according to the <strong>Colon Replacement</strong> setting above.
+            </p>
           </div>
         </div>
       </div>
@@ -127,12 +158,21 @@ const filePatternMultiFile = ref(props.settings.multiFileNamingPattern || '{Titl
 const sampleVariables = {
   Author: 'Stephen King',
   Series: 'The Dark Tower',
-  Title: 'The Gunslinger',
+  Title: 'The Gunslinger: Revised',
   SeriesNumber: '1',
   Year: '1982',
   DiskNumber: '3',
   ChapterNumber: '3',
   Quality: '128kbps'
+}
+
+function applyColonReplacement(value: string, colonReplacement?: string): string {
+  switch (colonReplacement) {
+    case 'Dash':          return value.replace(/:/g, '- ')
+    case 'SpaceDash':     return value.replace(/:/g, ' -')
+    case 'SpaceDashSpace': return value.replace(/:/g, ' - ')
+    default:              return value.replace(/:/g, '')
+  }
 }
 
 const modalTitle = computed(() => 
@@ -141,20 +181,22 @@ const modalTitle = computed(() =>
 
 function applyPattern(pattern: string, type: 'folder' | 'file' = 'folder', multiFile: boolean = false): string {
   if (!pattern) return ''
-  
+
+  const colonReplacement = props.settings.colonReplacement
   let result = pattern
-  
-  // Replace all variables with sample values
+
+  // Replace all variables with sample values (apply colon replacement to each value)
   for (const [key, value] of Object.entries(sampleVariables)) {
+    const sanitized = applyColonReplacement(value, colonReplacement)
     if (key === 'DiskNumber' || key === 'ChapterNumber') {
       // Handle zero-padding for disk and chapter numbers using the sample value
       const paddedRegex = new RegExp(`\\{${key}:00\\}`, 'g')
-      const paddedSample = value.toString().padStart(2, '0')
+      const paddedSample = sanitized.padStart(2, '0')
       result = result.replace(paddedRegex, paddedSample)
-      result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value)
+      result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), sanitized)
     } else {
       const regex = new RegExp(`\\{${key}\\}`, 'g')
-      result = result.replace(regex, value)
+      result = result.replace(regex, sanitized)
     }
   }
   
@@ -448,6 +490,47 @@ h3 svg {
   background-color: transparent;
   border-left: none;
   color: #90caf9;
+}
+
+.token-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.token-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  color: #adb5bd;
+  font-weight: 500;
+  border-bottom: 1px solid #444;
+}
+
+.token-table td {
+  padding: 0.5rem 0.75rem;
+  color: #ddd;
+  border-bottom: 1px solid #333;
+  vertical-align: middle;
+}
+
+.token-table tr:last-child td {
+  border-bottom: none;
+}
+
+.token-table td code {
+  background-color: #1a1a1a;
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  color: #4dd0e1;
+  font-size: 0.88em;
+}
+
+.token-note {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: #6c757d;
+  border-top: 1px solid #333;
+  padding-top: 0.75rem;
 }
 
 .pattern-preview {

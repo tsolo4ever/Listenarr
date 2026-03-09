@@ -494,7 +494,7 @@ namespace Listenarr.Api.Services
         /// <param name="variables">Dictionary of variable values</param>
         /// <param name="treatAsFilename">Whether to treat as filename (sanitize invalid chars)</param>
         /// <returns>Final path with variables replaced</returns>
-        string ApplyNamingPattern(string pattern, Dictionary<string, object> variables, bool treatAsFilename = false);
+        string ApplyNamingPattern(string pattern, Dictionary<string, object> variables, bool treatAsFilename = false, string colonReplacement = "Delete");
     }
 
     /// <summary>

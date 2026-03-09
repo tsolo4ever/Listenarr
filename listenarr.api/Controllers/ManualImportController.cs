@@ -263,7 +263,7 @@ public class ManualImportController : ControllerBase
             }
 
             // Generate destination path using appropriate naming pattern
-            var destinationPath = await GenerateManualImportPathAsync(audiobook, metadata, item.FullPath, isMultiFile);
+            var destinationPath = await GenerateManualImportPathAsync(audiobook, metadata!, item.FullPath, isMultiFile);
 
             // Ensure destination directory exists
             var destinationDir = Path.GetDirectoryName(destinationPath);

@@ -42,9 +42,7 @@ export function computeAudiobookStatus(
     const profile = qualityProfiles.find((item) => item.id === audiobook.qualityProfileId)
 
     if (!profile) {
-      const hasFileSummary =
-        !!(audiobook.filePath && audiobook.fileSize && audiobook.fileSize > 0) || hasFiles
-      return hasFileSummary ? 'quality-match' : 'no-file'
+      return 'quality-match'
     }
 
     const preferredFormats = (profile.preferredFormats || []).map((item) => normalize(item))

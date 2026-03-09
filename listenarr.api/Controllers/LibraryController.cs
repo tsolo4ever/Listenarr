@@ -1625,6 +1625,7 @@ namespace Listenarr.Api.Controllers
         /// Delete an audiobook from the library, including its cached cover image.
         /// </summary>
         /// <param name="id">Audiobook ID.</param>
+        /// <param name="deleteFiles">When true, also deletes the associated audio files from disk.</param>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAudiobook(int id, [FromQuery] bool deleteFiles = false)
         {

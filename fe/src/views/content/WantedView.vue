@@ -282,11 +282,12 @@ const wantedAudiobooks = computed(() => {
     if (serverWanted === true) return true
     if (serverWanted === false) return false
 
-    // Fallback: treat as wanted when monitored and there are no files
-    const hasFiles = Array.isArray(audiobook.files) ? audiobook.files.length > 0 : false
-    const hasPrimaryFile = !!(audiobook.filePath && audiobook.filePath.toString().trim() !== '')
+    // Fallback: treat as wanted when monitored and there are no files.
+    // Prefer fileCount (slim DTO) over files[] (full detail response).
+    const hasFiles =
+      (audiobook.fileCount ?? (Array.isArray(audiobook.files) ? audiobook.files.length : 0)) > 0
 
-    return !!audiobook.monitored && !hasFiles && !hasPrimaryFile
+    return !!audiobook.monitored && !hasFiles
   })
 })
 

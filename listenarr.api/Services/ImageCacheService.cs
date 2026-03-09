@@ -193,6 +193,9 @@ namespace Listenarr.Api.Services
                 finally
                 {
                     sem.Release();
+                    // Remove from dictionary once no waiters remain so semaphores don't accumulate indefinitely
+                    if (sem.CurrentCount > 0)
+                        _downloadLocks.TryRemove(identifier, out _);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException) {
@@ -678,7 +681,15 @@ namespace Listenarr.Api.Services
             try
             {
                 if (!File.Exists(filePath)) return false;
-                var bytes = File.ReadAllBytes(filePath);
+                // Read only enough header bytes for ImageSharp to identify dimensions (avoids loading full file into memory)
+                const int headerBytes = 4096;
+                byte[] bytes;
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    var len = (int)Math.Min(fs.Length, headerBytes);
+                    bytes = new byte[len];
+                    _ = fs.Read(bytes, 0, len);
+                }
                 var mediaType = GetMediaTypeFromExtension(Path.GetExtension(filePath));
                 if (IsPlaceholderImage(bytes, mediaType))
                 {

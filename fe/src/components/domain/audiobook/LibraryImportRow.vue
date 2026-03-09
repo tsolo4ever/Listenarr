@@ -70,6 +70,66 @@
         >
           <PhMagnifyingGlass :size="14" />
         </button>
+
+        <!-- Manual entry toggle -->
+        <button
+          class="btn-search-toggle"
+          :class="{ active: showManual }"
+          title="Add manually without a match"
+          @click="toggleManual"
+        >
+          <PhPencilSimple :size="14" />
+        </button>
+      </div>
+
+      <!-- Inline manual entry panel -->
+      <div v-if="showManual" class="search-panel">
+        <div class="search-input-wrap">
+          <input
+            v-model="manualTitle"
+            class="search-input search-input-title"
+            placeholder="Title"
+            @keydown.escape="showManual = false"
+          />
+          <span class="search-divider">|</span>
+          <input
+            v-model="manualAuthor"
+            class="search-input search-input-author"
+            placeholder="Author"
+            @keydown.escape="showManual = false"
+          />
+          <span class="search-divider">|</span>
+          <input
+            v-model="manualYear"
+            class="search-input"
+            style="width:4rem;flex-shrink:0"
+            placeholder="Year"
+            @keydown.escape="showManual = false"
+          />
+        </div>
+        <div class="search-input-wrap" style="border-bottom:none">
+          <input
+            v-model="manualSeries"
+            class="search-input search-input-title"
+            placeholder="Series"
+            @keydown.escape="showManual = false"
+          />
+          <span class="search-divider">|</span>
+          <input
+            v-model="manualSeriesNumber"
+            class="search-input"
+            style="width:4rem;flex-shrink:0"
+            placeholder="Series #"
+            @keydown.escape="showManual = false"
+          />
+          <button
+            class="btn btn-primary btn-manual-add"
+            :disabled="!manualTitle.trim()"
+            @click="applyManual"
+          >
+            Add
+          </button>
+        </div>
       </div>
 
       <!-- Inline search panel -->
@@ -131,7 +191,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { PhSpinner, PhCheckCircle, PhWarningCircle, PhMagnifyingGlass } from '@phosphor-icons/vue'
+import { PhSpinner, PhCheckCircle, PhWarningCircle, PhMagnifyingGlass, PhPencilSimple } from '@phosphor-icons/vue'
 import { useLibraryImportStore } from '@/stores/libraryImport'
 import type { LibraryImportItem } from '@/stores/libraryImport'
 import type { SearchResult } from '@/types'
@@ -144,6 +204,13 @@ const showSearch = ref(false)
 const searchAsin = ref(props.item.detectedAsin ?? '')
 const searchTitle = ref(props.item.detectedTitle ?? props.item.folderName)
 const searchAuthor = ref(props.item.detectedAuthor ?? '')
+
+const showManual = ref(false)
+const manualTitle = ref(props.item.detectedTitle ?? props.item.folderName)
+const manualAuthor = ref(props.item.detectedAuthor ?? '')
+const manualSeries = ref(props.item.detectedSeries ?? '')
+const manualSeriesNumber = ref('')
+const manualYear = ref('')
 const searchResults = ref<SearchResult[]>([])
 const isLocalSearching = ref(false)
 const hasSearched = ref(false)
@@ -207,6 +274,39 @@ function applyMatch(result: SearchResult) {
   store.selectMatch(props.item.id, result)
   showSearch.value = false
   searchResults.value = []
+}
+
+function toggleManual() {
+  showManual.value = !showManual.value
+  if (showManual.value) showSearch.value = false
+}
+
+function applyManual() {
+  const title = manualTitle.value.trim()
+  if (!title) return
+  // Synthetic SearchResult — no ASIN means _enrichMetadata skips Audimeta fetch
+  // and uses this metadata directly when importing
+  const syntheticMatch: SearchResult = {
+    id: `manual-${props.item.id}`,
+    title,
+    artist: manualAuthor.value.trim(),
+    album: title,
+    category: 'Audiobook',
+    source: 'Manual',
+    publishedDate: manualYear.value.trim() ? `${manualYear.value.trim()}-01-01` : '',
+    format: props.item.format,
+    asin: '',
+    authors: manualAuthor.value.trim() ? [{ name: manualAuthor.value.trim(), asin: '' }] : [],
+    series: manualSeries.value.trim() || undefined,
+    seriesNumber: manualSeriesNumber.value.trim() || undefined,
+    size: 0,
+    magnetLink: '',
+    torrentUrl: '',
+    nzbUrl: '',
+    downloadType: 'Manual',
+  }
+  store.selectMatch(props.item.id, syntheticMatch)
+  showManual.value = false
 }
 </script>
 
@@ -495,5 +595,12 @@ function applyMatch(result: SearchResult) {
   padding: 0.5rem 0.75rem;
   font-size: 0.8rem;
   color: #666;
+}
+
+.btn-manual-add {
+  margin-left: auto;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  flex-shrink: 0;
 }
 </style>

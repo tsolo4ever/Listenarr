@@ -105,8 +105,8 @@
               <option v-for="f in rootFoldersStore.folders" :key="f.id" :value="f.id">{{ f.name }}</option>
             </select>
           </div>
-          <div v-if="phase === 'results' && asinCount > 0 && !bulkAdding" class="bulk-hint">
-            {{ asinCount }} item{{ asinCount !== 1 ? 's' : '' }} with ASIN
+          <div v-if="phase === 'results' && items.length > 0 && !bulkAdding" class="bulk-hint">
+            {{ items.length }} item{{ items.length !== 1 ? 's' : '' }}
           </div>
           <div v-if="bulkAdding" class="bulk-progress">
             <PhSpinner class="ph-spin" />
@@ -114,14 +114,14 @@
           </div>
         </template>
         <button
-          v-if="phase === 'results' && asinCount > 0"
+          v-if="phase === 'results' && items.length > 0"
           class="btn btn-primary"
           :disabled="bulkAdding"
-          @click="addAllWithAsin"
-          title="Search Audimeta for every item with an ASIN and add matches automatically"
+          @click="addAll"
+          title="Add all items — ASIN items fetch Audimeta metadata, others use embedded file tags"
         >
           <PhRocketLaunch />
-          Add All (ASIN match)
+          Add All
         </button>
         <button
           class="btn btn-secondary"
@@ -195,7 +195,6 @@ const bulkAdding = ref(false)
 const bulkDone = ref(0)
 const bulkTotal = ref(0)
 
-const asinCount = computed(() => items.value.filter((i) => i.asin).length)
 const rootFolderName = computed(() => props.rootFolder?.name || props.rootFolder?.path || 'folder')
 
 const rootFoldersStore = useRootFoldersStore()
@@ -416,8 +415,8 @@ function mapToAudible(meta: AudimetaPayload, fallback: UnmatchedFileItem): Audib
   }
 }
 
-async function addAllWithAsin() {
-  const candidates = items.value.filter((i) => i.asin)
+async function addAll() {
+  const candidates = items.value.slice()
   if (!candidates.length) return
 
   bulkAdding.value = true
@@ -428,23 +427,45 @@ async function addAllWithAsin() {
 
   for (const item of candidates) {
     try {
-      // Fetch Audimeta metadata for this ASIN
-      const resp = await apiService.getAudibleMetadata<
-        { source?: string; metadata?: AudimetaPayload } | AudimetaPayload
-      >(item.asin!)
+      let metadata: AudibleBookMetadata
 
-      // Unwrap response — may be { source, metadata } or direct Audimeta payload
-      const raw =
-        resp && 'metadata' in resp && resp.metadata ? resp.metadata : (resp as AudimetaPayload)
+      if (item.asin) {
+        // Fetch enriched Audimeta metadata for items with a known ASIN
+        const resp = await apiService.getAudibleMetadata<
+          { source?: string; metadata?: AudimetaPayload } | AudimetaPayload
+        >(item.asin)
+        const raw =
+          resp && 'metadata' in resp && resp.metadata ? resp.metadata : (resp as AudimetaPayload)
+        metadata = raw?.title
+          ? mapToAudible(raw, item)
+          : {
+              title: item.title || item.relativePath.split('/').pop() || item.relativePath,
+              asin: item.asin,
+              authors: item.author ? [item.author] : [],
+              series: item.series,
+              seriesNumber: item.seriesNumber,
+              publishYear: item.year,
+              narrators: item.narrator ? [item.narrator] : [],
+            }
+      } else {
+        // No ASIN — use file-embedded metadata directly
+        metadata = {
+          title: item.title || item.relativePath.split('/').pop() || item.relativePath,
+          asin: '',
+          authors: item.author ? [item.author] : [],
+          series: item.series,
+          seriesNumber: item.seriesNumber,
+          publishYear: item.year,
+          narrators: item.narrator ? [item.narrator] : [],
+        }
+      }
 
-      if (!raw?.title) {
-        // No metamatch — skip, leave in table
+      if (!metadata.title) {
         skipped++
         bulkDone.value++
         continue
       }
 
-      const metadata = mapToAudible(raw, item)
       const { audiobook } = await apiService.addToLibrary(metadata, {
         destinationPath: destinationFolder.value?.path,
       })
@@ -474,9 +495,9 @@ async function addAllWithAsin() {
   bulkAdding.value = false
 
   if (added > 0) {
-    toast.success('Bulk add complete', `Added ${added} book${added !== 1 ? 's' : ''}${skipped > 0 ? `, ${skipped} skipped (no match)` : ''}`)
+    toast.success('Bulk add complete', `Added ${added} book${added !== 1 ? 's' : ''}${skipped > 0 ? `, ${skipped} skipped` : ''}`)
   } else {
-    toast.info('No matches found', 'No Audimeta records found for the ASINs in this scan')
+    toast.info('Nothing added', 'No books could be added from the scan results')
   }
 }
 </script>

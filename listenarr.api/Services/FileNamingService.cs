@@ -69,14 +69,15 @@ namespace Listenarr.Api.Services
                 return string.IsNullOrWhiteSpace(primary) ? alternate : primary;
             }
 
+            var colonReplacement = settings.ColonReplacement ?? "Delete";
             var variables = new Dictionary<string, object>
             {
                 // Keep multi-word author names as a single folder name (e.g. "Jane Austen")
-                { "Author", SanitizePathComponent(FirstNonEmpty(ChooseAuthor(metadata), "Unknown Author")) },
+                { "Author", SanitizePathComponent(FirstNonEmpty(ChooseAuthor(metadata), "Unknown Author"), colonReplacement) },
                 // For Series we must not fallback to Album or Title - when Series is blank we want
                 // the variable to be empty so ApplyNamingPattern can remove any adjacent separators
-                { "Series", string.IsNullOrWhiteSpace(metadata.Series) ? string.Empty : SanitizePathComponent(metadata.Series) },
-                { "Title", SanitizePathComponent(FirstNonEmpty(metadata.Title, "Unknown Title")) },
+                { "Series", string.IsNullOrWhiteSpace(metadata.Series) ? string.Empty : SanitizePathComponent(metadata.Series, colonReplacement) },
+                { "Title", SanitizePathComponent(FirstNonEmpty(metadata.Title, "Unknown Title"), colonReplacement) },
                 { "SeriesNumber", FirstNonEmpty(metadata.SeriesPosition?.ToString(), metadata.TrackNumber?.ToString()) },
                 { "Year", FirstNonEmpty(metadata.Year?.ToString()) },
                 { "Quality", FirstNonEmpty((metadata.Bitrate.HasValue ? metadata.Bitrate.ToString() + "kbps" : null), metadata.Format) },
@@ -103,15 +104,15 @@ namespace Listenarr.Api.Services
                     ? "{Author}/{Series}/{Title}"
                     : filePattern;
 
-                relativePath = ApplyNamingPattern(legacyPattern, variables);
+                relativePath = ApplyNamingPattern(legacyPattern, variables, colonReplacement: colonReplacement);
             }
             else
             {
                 // New behavior: separate folder and file patterns
                 var effectiveFilePattern = string.IsNullOrWhiteSpace(filePattern) ? "{Title}" : filePattern;
 
-                var folderRelative = ApplyNamingPattern(folderPattern, variables, treatAsFilename: false);
-                
+                var folderRelative = ApplyNamingPattern(folderPattern, variables, treatAsFilename: false, colonReplacement: colonReplacement);
+
                 // Normalize path separators to platform-specific ones
                 if (!string.IsNullOrWhiteSpace(folderRelative))
                 {
@@ -124,7 +125,7 @@ namespace Listenarr.Api.Services
                     || effectiveFilePattern.IndexOf('/') >= 0
                     || effectiveFilePattern.IndexOf('\\') >= 0;
 
-                var fileRelative = ApplyNamingPattern(effectiveFilePattern, variables, treatAsFilename: !patternAllowsSubfolders);
+                var fileRelative = ApplyNamingPattern(effectiveFilePattern, variables, treatAsFilename: !patternAllowsSubfolders, colonReplacement: colonReplacement);
 
                 relativePath = string.IsNullOrWhiteSpace(folderRelative)
                     ? fileRelative
@@ -216,12 +217,13 @@ namespace Listenarr.Api.Services
                 return string.IsNullOrWhiteSpace(primary) ? alternate : primary;
             }
 
+            var colonReplacement = settings.ColonReplacement ?? "Delete";
             var variables = new Dictionary<string, object>
             {
-                { "Author", SanitizePathComponent(FirstNonEmpty(ChooseAuthor2(metadata), "Unknown Author")) },
+                { "Author", SanitizePathComponent(FirstNonEmpty(ChooseAuthor2(metadata), "Unknown Author"), colonReplacement) },
                 // Same behavior for overload with custom outputPath: do not fallback for Series
-                { "Series", string.IsNullOrWhiteSpace(metadata.Series) ? string.Empty : SanitizePathComponent(metadata.Series) },
-                { "Title", SanitizePathComponent(FirstNonEmpty(metadata.Title, "Unknown Title")) },
+                { "Series", string.IsNullOrWhiteSpace(metadata.Series) ? string.Empty : SanitizePathComponent(metadata.Series, colonReplacement) },
+                { "Title", SanitizePathComponent(FirstNonEmpty(metadata.Title, "Unknown Title"), colonReplacement) },
                 { "SeriesNumber", FirstNonEmpty(metadata.SeriesPosition?.ToString(), metadata.TrackNumber?.ToString()) },
                 { "Year", FirstNonEmpty(metadata.Year?.ToString()) },
                 { "Quality", FirstNonEmpty((metadata.Bitrate.HasValue ? metadata.Bitrate.ToString() + "kbps" : null), metadata.Format) },
@@ -248,14 +250,14 @@ namespace Listenarr.Api.Services
                     ? "{Author}/{Series}/{Title}"
                     : filePattern;
 
-                relativePath = ApplyNamingPattern(legacyPattern, variables);
+                relativePath = ApplyNamingPattern(legacyPattern, variables, colonReplacement: colonReplacement);
             }
             else
             {
                 // New behavior: separate folder and file patterns
                 var effectiveFilePattern = string.IsNullOrWhiteSpace(filePattern) ? "{Title}" : filePattern;
 
-                var folderRelative = ApplyNamingPattern(effectiveFolderPattern, variables, treatAsFilename: false);
+                var folderRelative = ApplyNamingPattern(effectiveFolderPattern, variables, treatAsFilename: false, colonReplacement: colonReplacement);
                 
                 // Normalize path separators to platform-specific ones
                 if (!string.IsNullOrWhiteSpace(folderRelative))
@@ -269,7 +271,7 @@ namespace Listenarr.Api.Services
                     || effectiveFilePattern.IndexOf('/') >= 0
                     || effectiveFilePattern.IndexOf('\\') >= 0;
 
-                var fileRelative = ApplyNamingPattern(effectiveFilePattern, variables, treatAsFilename: !patternAllowsSubfolders);
+                var fileRelative = ApplyNamingPattern(effectiveFilePattern, variables, treatAsFilename: !patternAllowsSubfolders, colonReplacement: colonReplacement);
 
                 relativePath = string.IsNullOrWhiteSpace(folderRelative)
                     ? fileRelative
@@ -296,7 +298,7 @@ namespace Listenarr.Api.Services
         /// <summary>
         /// Parse a naming pattern and replace variables with actual values
         /// </summary>
-        public string ApplyNamingPattern(string pattern, Dictionary<string, object> variables, bool treatAsFilename = false)
+        public string ApplyNamingPattern(string pattern, Dictionary<string, object> variables, bool treatAsFilename = false, string colonReplacement = "Delete")
         {
             if (string.IsNullOrWhiteSpace(pattern))
             {
@@ -372,7 +374,7 @@ namespace Listenarr.Api.Services
 
                 // Remove any stray separators and sanitize the filename component
                 result = result.Replace("/", string.Empty).Replace("\\", string.Empty);
-                result = SanitizePathComponent(result);
+                result = SanitizePathComponent(result, colonReplacement);
             }
             else
             {
@@ -393,7 +395,7 @@ namespace Listenarr.Api.Services
                 }
 
                 // Sanitize each path component to remove invalid characters
-                var sanitizedParts = parts.Select(p => SanitizePathComponent(p)).ToList();
+                var sanitizedParts = parts.Select(p => SanitizePathComponent(p, colonReplacement)).ToList();
                 result = string.Join(Path.DirectorySeparatorChar.ToString(), sanitizedParts);
             }
 
@@ -403,7 +405,15 @@ namespace Listenarr.Api.Services
         /// <summary>
         /// Remove invalid characters from path components
         /// </summary>
-        private string SanitizePathComponent(string pathComponent)
+        private static string ApplyColonReplacement(string colonReplacement) => colonReplacement switch
+        {
+            "Dash"           => "- ",
+            "SpaceDash"      => " -",
+            "SpaceDashSpace" => " - ",
+            _                => ""   // "Delete" — strip colon, leave surrounding spaces to trim
+        };
+
+        private string SanitizePathComponent(string pathComponent, string colonReplacement = "Delete")
         {
             if (string.IsNullOrWhiteSpace(pathComponent))
             {
@@ -413,11 +423,16 @@ namespace Listenarr.Api.Services
             // Get invalid filename characters
             var invalidChars = Path.GetInvalidFileNameChars();
 
-            // Replace invalid characters with underscore
+            var colonRepl = ApplyColonReplacement(colonReplacement);
+
             var sanitized = new StringBuilder();
             foreach (var c in pathComponent)
             {
-                if (invalidChars.Contains(c))
+                if (c == ':')
+                {
+                    sanitized.Append(colonRepl);
+                }
+                else if (invalidChars.Contains(c))
                 {
                     sanitized.Append('_');
                 }

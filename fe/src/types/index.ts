@@ -262,6 +262,7 @@ export interface ApplicationSettings {
   folderNamingPattern: string
   fileNamingPattern: string
   multiFileNamingPattern: string
+  colonReplacement?: 'Delete' | 'Dash' | 'SpaceDash' | 'SpaceDashSpace'
   enableMetadataProcessing: boolean
   enableCoverArtDownload: boolean
   audnexusApiUrl: string

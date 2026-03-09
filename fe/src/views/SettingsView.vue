@@ -1048,6 +1048,7 @@ const syncTabFromHash = () => {
     | 'quality-profiles'
     | 'notifications'
     | 'bot'
+    | 'media'
     | 'general'
   if (
     hash &&
@@ -1058,6 +1059,7 @@ const syncTabFromHash = () => {
       'quality-profiles',
       'notifications',
       'bot',
+      'media',
       'general',
     ].includes(hash)
   ) {
@@ -1235,6 +1237,12 @@ async function loadTabContents(tab: string) {
         break
       case 'notifications':
         // Notifications are part of general settings
+        if (!loaded.general) {
+          await loadTabContents('general')
+        }
+        break
+      case 'media':
+        // Media management uses application settings
         if (!loaded.general) {
           await loadTabContents('general')
         }

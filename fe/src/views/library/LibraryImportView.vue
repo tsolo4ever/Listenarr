@@ -272,7 +272,8 @@ onMounted(async () => {
   }
 
   const action = configStore.applicationSettings?.completedFileAction
-  if (action === 'Hardlink/Copy') store.inputMode = 'hardlink/copy'
+  if (action === 'Hardlink' || action === 'Hardlink/Copy') store.inputMode = 'hardlink'
+  else if (action === 'Copy') store.inputMode = 'copy'
   else store.inputMode = 'move'
 })
 

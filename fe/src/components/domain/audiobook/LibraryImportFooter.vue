@@ -4,7 +4,8 @@
       <label class="footer-label">
         <select v-model="store.inputMode" class="mode-select" :disabled="isImporting">
           <option value="move">Move</option>
-          <option value="hardlink/copy">Hardlink / Copy</option>
+          <option value="hardlink">Hardlink</option>
+          <option value="copy">Copy</option>
         </select>
         <span class="footer-to">to:</span>
         <select

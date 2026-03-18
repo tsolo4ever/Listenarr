@@ -19,6 +19,7 @@ public class ManualImportController : ControllerBase
     private readonly IConfigurationService _configService;
     private readonly IScanQueueService _scanQueueService;
     private readonly IRootFolderService _rootFolderService;
+    private readonly IFileMover? _fileMover;
 
     public ManualImportController(
         ILogger<ManualImportController> logger,
@@ -27,7 +28,8 @@ public class ManualImportController : ControllerBase
         IFileNamingService fileNamingService,
         IConfigurationService configService,
         IScanQueueService scanQueueService,
-        IRootFolderService rootFolderService)
+        IRootFolderService rootFolderService,
+        IFileMover? fileMover = null)
     {
         _logger = logger;
         _audiobookRepository = audiobookRepository;
@@ -36,6 +38,7 @@ public class ManualImportController : ControllerBase
         _configService = configService;
         _scanQueueService = scanQueueService;
         _rootFolderService = rootFolderService;
+        _fileMover = fileMover;
     }
 
     /// <summary>
@@ -284,6 +287,17 @@ public class ManualImportController : ControllerBase
             // Generate destination path using appropriate naming pattern
             var destinationPath = await GenerateManualImportPathAsync(audiobook, metadata, item, isMultiFile);
 
+            // If source is already at the destination, skip the file operation entirely.
+            // This happens when re-importing files already in the library — no move/copy needed.
+            if (string.Equals(Path.GetFullPath(item.FullPath), Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Source is already at destination, skipping file operation: {Path}", item.FullPath);
+                await EnsureAudiobookBasePathAsync(audiobook, destinationPath);
+                if (!string.IsNullOrWhiteSpace(audiobook.Asin))
+                    await _metadataService.WriteAsinTagAsync(destinationPath, audiobook.Asin);
+                return new ManualImportResult { Success = true, FilePath = destinationPath };
+            }
+
             // Ensure destination directory exists
             var destinationDir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrEmpty(destinationDir))
@@ -309,11 +323,28 @@ public class ManualImportController : ControllerBase
             // Move or copy the file
             try
             {
-                _logger.LogDebug("Attempting to {Operation} file from {Source} to {Destination}", inputMode == "move" ? "move" : "copy", item.FullPath, destinationPath);
+                _logger.LogDebug("Attempting to {Operation} file from {Source} to {Destination}", inputMode == "move" ? "move" : inputMode == "hardlink" ? "hardlink" : "copy", item.FullPath, destinationPath);
                 if (inputMode == "move")
                 {
                     System.IO.File.Move(item.FullPath, destinationPath, overwrite: false);
                     _logger.LogInformation("Moved file {Source} to {Destination}", item.FullPath, destinationPath);
+                }
+                else if (inputMode == "hardlink")
+                {
+                    var hardlinked = false;
+                    if (_fileMover != null)
+                    {
+                        hardlinked = await _fileMover.HardlinkFileAsync(item.FullPath, destinationPath);
+                    }
+                    if (hardlinked)
+                        _logger.LogInformation("Hardlinked file {Source} to {Destination}", item.FullPath, destinationPath);
+                    else
+                    {
+                        if (_fileMover != null)
+                            _logger.LogWarning("Hardlink failed for {Source}, falling back to copy", item.FullPath);
+                        System.IO.File.Copy(item.FullPath, destinationPath, overwrite: false);
+                        _logger.LogInformation("Copied file {Source} to {Destination}", item.FullPath, destinationPath);
+                    }
                 }
                 else
                 {
@@ -817,6 +848,14 @@ public class ManualImportController : ControllerBase
                 if (!string.IsNullOrWhiteSpace(destinationDir))
                 {
                     Directory.CreateDirectory(destinationDir);
+                }
+
+                if (string.Equals(Path.GetFullPath(companionFile), Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation("Companion file already at destination, skipping: {Path}", companionFile);
+                    usedDestinations.Add(destinationPath);
+                    importedCount++;
+                    continue;
                 }
 
                 destinationPath = FileUtils.GetUniqueDestinationPath(destinationPath, System.IO.File.Exists, usedDestinations);

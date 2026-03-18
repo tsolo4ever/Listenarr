@@ -45,8 +45,8 @@ namespace Listenarr.Api.Tests
 
             var mockFileNamingService = new Mock<IFileNamingService>();
             mockFileNamingService
-                .Setup(x => x.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false))
-                .Returns((string pattern, Dictionary<string, object> vars, bool sanitize) =>
+                .Setup(x => x.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false, It.IsAny<string>()))
+                .Returns((string pattern, Dictionary<string, object> vars, bool sanitize, string _colonRepl) =>
                 {
                     // For non-series book, the method derives pattern from fileNamingPattern by removing file-specific tokens
                     // Input: "{Author}/{Series}/{Title}"
@@ -111,8 +111,8 @@ namespace Listenarr.Api.Tests
 
             var mockFileNamingService = new Mock<IFileNamingService>();
             mockFileNamingService
-                .Setup(x => x.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false))
-                .Returns((string pattern, Dictionary<string, object> vars, bool sanitize) =>
+                .Setup(x => x.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false, It.IsAny<string>()))
+                .Returns((string pattern, Dictionary<string, object> vars, bool sanitize, string _colonRepl) =>
                 {
                     // For series book, the method derives pattern from fileNamingPattern by removing file-specific tokens
                     // Input: "{Author}/{Series}/{Title}"

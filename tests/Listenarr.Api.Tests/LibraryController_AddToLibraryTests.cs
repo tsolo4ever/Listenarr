@@ -41,8 +41,8 @@ namespace Listenarr.Api.Tests
 
             var mockFileNaming = new Mock<IFileNamingService>();
             mockFileNaming
-                .Setup(f => f.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false))
-                .Returns((string pattern, Dictionary<string, object> vars, bool t) =>
+                .Setup(f => f.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false, It.IsAny<string>()))
+                .Returns((string pattern, Dictionary<string, object> vars, bool t, string _colonRepl) =>
                 {
                     // Simulate FileNamingService producing an Author/Title relative path
                     var author = vars.ContainsKey("Author") ? vars["Author"]?.ToString() ?? "Unknown" : "Unknown";
@@ -130,8 +130,8 @@ namespace Listenarr.Api.Tests
 
             var mockFileNaming = new Mock<IFileNamingService>();
             mockFileNaming
-                .Setup(f => f.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false))
-                .Returns((string pattern, Dictionary<string, object> vars, bool t) =>
+                .Setup(f => f.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false, It.IsAny<string>()))
+                .Returns((string pattern, Dictionary<string, object> vars, bool t, string _colonRepl) =>
                 {
                     var author = vars.ContainsKey("Author") ? vars["Author"]?.ToString() ?? "Unknown" : "Unknown";
                     var title = vars.ContainsKey("Title") ? vars["Title"]?.ToString() ?? "Unknown" : "Unknown";
@@ -216,8 +216,8 @@ namespace Listenarr.Api.Tests
 
             var mockFileNaming = new Mock<IFileNamingService>();
             mockFileNaming
-                .Setup(f => f.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false))
-                .Returns((string pattern, Dictionary<string, object> vars, bool t) =>
+                .Setup(f => f.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), false, It.IsAny<string>()))
+                .Returns((string pattern, Dictionary<string, object> vars, bool t, string _colonRepl) =>
                 {
                     var author = vars.ContainsKey("Author") ? vars["Author"]?.ToString() ?? "Unknown" : "Unknown";
                     var title = vars.ContainsKey("Title") ? vars["Title"]?.ToString() ?? "Unknown" : "Unknown";

@@ -39,8 +39,8 @@ namespace Listenarr.Api.Tests
 
             var fileNamingMock = new Mock<IFileNamingService>();
             // For manual import pattern {Title} we want the generated relative path to be the book title (no extra folders)
-            fileNamingMock.Setup(f => f.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<System.Collections.Generic.Dictionary<string, object>>(), It.IsAny<bool>()))
-                .Returns((string pattern, System.Collections.Generic.Dictionary<string, object> vars, bool t) => vars.ContainsKey("Title") ? vars["Title"].ToString() ?? "Batch Book" : "Batch Book");
+            fileNamingMock.Setup(f => f.ApplyNamingPattern(It.IsAny<string>(), It.IsAny<System.Collections.Generic.Dictionary<string, object>>(), It.IsAny<bool>(), It.IsAny<string>()))
+                .Returns((string pattern, System.Collections.Generic.Dictionary<string, object> vars, bool t, string colonRepl) => vars.ContainsKey("Title") ? vars["Title"].ToString() ?? "Batch Book" : "Batch Book");
 
             var configMock = new Mock<IConfigurationService>();
             configMock.Setup(c => c.GetApplicationSettingsAsync()).ReturnsAsync(new ApplicationSettings { OutputPath = basePath });

@@ -417,7 +417,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
     if (!match.asin) return base
     try {
       type AudimetaPayload = {
-        authors?: { name?: string }[]
+        authors?: { name?: string; asin?: string }[]
         narrators?: { name?: string }[]
       }
       const resp = await apiService.getAudibleMetadata<
@@ -426,10 +426,12 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
       const raw: AudimetaPayload =
         resp && 'metadata' in resp && resp.metadata ? resp.metadata : (resp as AudimetaPayload)
       const enrichedAuthors = (raw.authors ?? []).map((a) => a?.name ?? '').filter(Boolean)
+      const enrichedAuthorAsins = (raw.authors ?? []).map((a) => a?.asin ?? '').filter(Boolean)
       const enrichedNarrators = (raw.narrators ?? []).map((n) => n?.name ?? '').filter(Boolean)
       return {
         ...base,
         ...(enrichedAuthors.length > 0 ? { authors: enrichedAuthors } : {}),
+        ...(enrichedAuthorAsins.length > 0 ? { authorAsins: enrichedAuthorAsins } : {}),
         ...(enrichedNarrators.length > 0 ? { narrators: enrichedNarrators } : {}),
       }
     } catch {

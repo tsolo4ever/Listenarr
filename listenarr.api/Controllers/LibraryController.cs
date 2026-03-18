@@ -375,6 +375,7 @@ namespace Listenarr.Api.Controllers
                 PublishedDate = metadata.PublishedDate, // Store full date from metadata for calendar/timeline features
                 Series = metadata.Series,
                 SeriesNumber = ToStringOrFirst(metadata.SeriesNumber),
+                SeriesAsin = metadata.SeriesAsin,
                 Description = ToStringOrFirst(metadata.Description),
                 Publisher = ToStringOrFirst(metadata.Publisher),
                 Genres = (metadata.Genres != null && metadata.Genres.Any()) ? metadata.Genres : null,
@@ -446,9 +447,15 @@ namespace Listenarr.Api.Controllers
                 using var scope = _scopeFactory.CreateScope();
                 var audimeta = scope.ServiceProvider.GetRequiredService<AudimetaService>();
 
+                // Seed author ASINs passed directly from the frontend (from Audimeta enrichment)
+                if (metadata.AuthorAsins != null && metadata.AuthorAsins.Any())
+                {
+                    audiobook.AuthorAsins = metadata.AuthorAsins.ToList();
+                }
+
                 if (audiobook.Authors != null && audiobook.Authors.Any())
                 {
-                    audiobook.AuthorAsins = audiobook.AuthorAsins ?? new List<string>();
+                    audiobook.AuthorAsins ??= new List<string>();
                     foreach (var authorName in audiobook.Authors)
                     {
                         try

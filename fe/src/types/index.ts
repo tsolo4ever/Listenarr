@@ -374,6 +374,7 @@ export interface AudibleBookMetadata {
   metadataSource?: string
   // Optional local mapping to a quality profile ID when viewing in the UI
   qualityProfileId?: number
+  authorAsins?: string[]
 }
 
 export type AudiobookExternalIdentifierType = 'Asin' | 'Isbn' | 'OpenLibraryId'
@@ -447,6 +448,7 @@ export interface Audiobook {
   qualityProfileId?: number
   // Optional list of author ASINs (populated by backend when available)
   authorAsins?: string[]
+  seriesAsin?: string
   identifiers?: AudiobookExternalIdentifier[]
   // Server-computed flag indicating if this audiobook is wanted (monitored and missing files)
   wanted?: boolean

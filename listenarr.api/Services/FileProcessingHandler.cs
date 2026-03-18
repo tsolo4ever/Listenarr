@@ -147,7 +147,7 @@ namespace Listenarr.Api.Services
                     }
                     job.AddLogEntry($"Copied file: {sourcePath} -> {uniqueDest}");
                 }
-                else if (string.Equals(action, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(action, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "Hardlink", StringComparison.OrdinalIgnoreCase))
                 {
                     if (fileMover != null)
                     {

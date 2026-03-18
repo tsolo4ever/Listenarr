@@ -143,7 +143,8 @@
           <select v-if="showPreview" class="extra-select" v-model="inputMode">
             <option value="">Select Import Mode</option>
             <option value="move">Move</option>
-            <option value="hardlink/copy">Hardlink/Copy</option>
+            <option value="hardlink">Hardlink</option>
+            <option value="copy">Copy</option>
           </select>
 
           <!-- Show Interactive/Automatic Import when browser is open and not in preview mode -->
@@ -313,7 +314,7 @@ const emit = defineEmits(['close', 'imported'] as const)
 const selectedPath = ref(props.initialPath || '')
 const loading = ref(false)
 const browserMode = ref(false)
-const inputMode = ref<'move' | 'hardlink/copy' | ''>('')
+const inputMode = ref<'move' | 'copy' | 'hardlink' | ''>('')
 const showPreview = ref(false)
 interface PreviewItem {
   relativePath: string
@@ -563,7 +564,7 @@ const startAutomaticImport = async () => {
   try {
     // When running automatic import, send minimal request; backend will handle scanning
     const autoPayload: ManualImportRequest = { path: selectedPath.value, mode: 'automatic' }
-    if (inputMode.value === 'move' || inputMode.value === 'hardlink/copy')
+    if (inputMode.value === 'move' || inputMode.value === 'hardlink' || inputMode.value === 'copy')
       autoPayload.inputMode = inputMode.value
     const resp = await apiService.startManualImport(autoPayload)
     // resp should contain import summary
@@ -606,7 +607,7 @@ const importSelected = async () => {
       path: selectedPath.value,
       mode: 'interactive',
       items: payloadItems,
-      inputMode: inputMode.value || 'hardlink/copy',
+      inputMode: inputMode.value || 'hardlink',
     }
     const resp = await apiService.startManualImport(manualPayload)
     emit('imported', { imported: resp.importedCount ?? selected.length })

@@ -278,7 +278,7 @@ namespace Listenarr.Api.Services
                         var ok = await _fileMover.CopyFileAsync(sourcePath, uniqueInitial);
                         if (ok) result.WasCopied = true;
                     }
-                    else if (string.Equals(action, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase))
+                    else if (string.Equals(action, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "Hardlink", StringComparison.OrdinalIgnoreCase))
                     {
                         var ok = await _fileMover.HardlinkFileAsync(sourcePath, uniqueInitial);
                         if (!ok)
@@ -488,7 +488,7 @@ namespace Listenarr.Api.Services
 
                                 res.WasCopied = true;
                             }
-                            else if (string.Equals(completedFileAction, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase))
+                            else if (string.Equals(completedFileAction, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase) || string.Equals(completedFileAction, "Hardlink", StringComparison.OrdinalIgnoreCase))
                             {
                                 var ok = await _fileMover.HardlinkFileAsync(file, finalCompanionPath);
                                 if (!ok)
@@ -705,7 +705,7 @@ namespace Listenarr.Api.Services
                                 res.WasCopied = true;
                             }
                         }
-                        else if (string.Equals(completedFileAction, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(completedFileAction, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase) || string.Equals(completedFileAction, "Hardlink", StringComparison.OrdinalIgnoreCase))
                         {
                             var ok = await _fileMover.HardlinkFileAsync(file, uniqueInitial);
                             if (!ok)

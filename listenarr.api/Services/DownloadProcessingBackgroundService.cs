@@ -823,7 +823,7 @@ namespace Listenarr.Api.Services
                                     throw;
                                 }
                             }
-                            else if (string.Equals(action, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase))
+                            else if (string.Equals(action, "Hardlink/Copy", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "Hardlink", StringComparison.OrdinalIgnoreCase))
                             {
                                 try
                                 {

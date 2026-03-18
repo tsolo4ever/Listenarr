@@ -143,7 +143,7 @@ export const useLibraryImportStore = defineStore('libraryImport', () => {
   const scanStatus = ref<'idle' | 'scanning' | 'done' | 'error'>('idle')
   const scanError = ref<string | null>(null)
   const lastScannedAt = ref<string | null>(null)
-  const inputMode = ref<'move' | 'hardlink/copy'>('move')
+  const inputMode = ref<'move' | 'copy' | 'hardlink'>('move')
   const metadataFetchCount = ref(0)
   const importErrors = ref<string[]>([])
 

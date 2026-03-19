@@ -984,6 +984,7 @@ if (app.Environment.IsDevelopment())
 
 // Apply UrlBase as a path prefix when configured (must be first in pipeline).
 // Allows Listenarr to run under a subpath, e.g. https://myserver.com/listenarr/
+string? activeUrlBase = null;
 try
 {
     using var urlBaseScope = app.Services.CreateScope();
@@ -995,6 +996,7 @@ try
         if (!urlBase.StartsWith("/")) urlBase = "/" + urlBase;
         urlBase = urlBase.TrimEnd('/');
         app.UsePathBase(urlBase);
+        activeUrlBase = urlBase;
         Log.Logger.Information("[Startup] Using URL base path: {UrlBase}", urlBase);
     }
 }
@@ -1045,6 +1047,28 @@ app.MapGet("/placeholder.svg", async context =>
         context.Response.StatusCode = 500;
     }
 });
+
+// Inject <base href> into index.html so Vite's absolute asset paths resolve correctly
+// when the app is served under a URL base path (e.g. /listenarr/).
+if (!string.IsNullOrWhiteSpace(activeUrlBase))
+{
+    var indexHtmlPath = Path.Combine(app.Environment.WebRootPath, "index.html");
+    var baseHref = activeUrlBase.TrimEnd('/') + "/";
+    app.Use(async (context, next) =>
+    {
+        var path = context.Request.Path.Value ?? "";
+        if ((path == "/" || path == "" || path.Equals("/index.html", StringComparison.OrdinalIgnoreCase))
+            && File.Exists(indexHtmlPath))
+        {
+            var html = await File.ReadAllTextAsync(indexHtmlPath);
+            html = html.Replace("<head>", $"<head><base href=\"{baseHref}\">");
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.WriteAsync(html);
+            return;
+        }
+        await next();
+    });
+}
 
 app.UseDefaultFiles();
 app.UseStaticFiles();

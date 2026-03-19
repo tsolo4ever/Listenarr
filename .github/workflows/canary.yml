@@ -186,7 +186,7 @@ jobs:
         id: set-tags
         run: |
           # Use repository owner as namespace for Docker Hub
-          echo "DOCKER_IMAGE=docker.io/therobbiedavis/listenarr" >> $GITHUB_OUTPUT
+          echo "DOCKER_IMAGE=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/listenarr" >> $GITHUB_OUTPUT
           # Publish GHCR images under the same owner namespace
           echo "GHCR_IMAGE=ghcr.io/listenarrs/listenarr" >> $GITHUB_OUTPUT
 

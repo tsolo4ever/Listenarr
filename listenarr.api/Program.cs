@@ -995,9 +995,13 @@ try
     {
         if (!urlBase.StartsWith("/")) urlBase = "/" + urlBase;
         urlBase = urlBase.TrimEnd('/');
-        app.UsePathBase(urlBase);
-        activeUrlBase = urlBase;
-        Log.Logger.Information("[Startup] Using URL base path: {UrlBase}", urlBase);
+        // "/" trims to "" — that's root, no path base needed
+        if (!string.IsNullOrEmpty(urlBase))
+        {
+            app.UsePathBase(urlBase);
+            activeUrlBase = urlBase;
+            Log.Logger.Information("[Startup] Using URL base path: {UrlBase}", urlBase);
+        }
     }
 }
 catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException)

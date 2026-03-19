@@ -188,6 +188,50 @@ namespace Listenarr.Api.Services
                 _logger.LogError(ex, "Failed to load startup config from {Path}", _configPath);
                 _config = new StartupConfig();
             }
+
+            ApplyEnvOverrides();
+        }
+
+        // Allow Docker/compose env vars (LISTENARR__<FIELD>) to override file values at startup.
+        // This does NOT persist back to the config file — env vars are runtime-only overrides.
+        private void ApplyEnvOverrides()
+        {
+            if (_config == null) return;
+
+            var urlBase = Environment.GetEnvironmentVariable("LISTENARR__URL_BASE");
+            if (!string.IsNullOrWhiteSpace(urlBase))
+            {
+                _config.UrlBase = urlBase.Trim();
+                _logger.LogInformation("[StartupConfigService] UrlBase overridden by env var: {UrlBase}", _config.UrlBase);
+            }
+
+            var port = Environment.GetEnvironmentVariable("LISTENARR__PORT");
+            if (!string.IsNullOrWhiteSpace(port) && int.TryParse(port, out var portVal))
+            {
+                _config.Port = portVal;
+                _logger.LogInformation("[StartupConfigService] Port overridden by env var: {Port}", portVal);
+            }
+
+            var bindAddress = Environment.GetEnvironmentVariable("LISTENARR__BIND_ADDRESS");
+            if (!string.IsNullOrWhiteSpace(bindAddress))
+            {
+                _config.BindAddress = bindAddress.Trim();
+                _logger.LogInformation("[StartupConfigService] BindAddress overridden by env var: {BindAddress}", _config.BindAddress);
+            }
+
+            var logLevel = Environment.GetEnvironmentVariable("LISTENARR__LOG_LEVEL");
+            if (!string.IsNullOrWhiteSpace(logLevel))
+            {
+                _config.LogLevel = logLevel.Trim();
+                _logger.LogInformation("[StartupConfigService] LogLevel overridden by env var: {LogLevel}", _config.LogLevel);
+            }
+
+            var instanceName = Environment.GetEnvironmentVariable("LISTENARR__INSTANCE_NAME");
+            if (!string.IsNullOrWhiteSpace(instanceName))
+            {
+                _config.InstanceName = instanceName.Trim();
+                _logger.LogInformation("[StartupConfigService] InstanceName overridden by env var: {InstanceName}", _config.InstanceName);
+            }
         }
 
         public StartupConfig? GetConfig() => _config;

@@ -449,6 +449,7 @@ export interface Audiobook {
     channels?: number
     createdAt?: string
     source?: string
+    exists?: boolean
   }[]
   quality?: string
   qualityProfileId?: number

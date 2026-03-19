@@ -397,16 +397,6 @@ jobs:
             ${{ steps.set-tags.outputs.GHCR_IMAGE }}:canary
             ${{ steps.set-tags.outputs.GHCR_IMAGE }}:canary-${{ steps.resolve-version.outputs.VERSION }}
 
-      - name: Notify Discord
-        uses: rjstone/discord-webhook-notify@v2.2.1
-        if: ${{ github.repository_owner == 'listenarrs' }}
-        with:
-            severity: info
-            description: v${{steps.resolve-version.outputs.VERSION}} - ${{ steps.find_triggering_pr.outputs.PR_TITLE }}
-            details: '${{ steps.sanitize_pr_body.outputs.SANITIZED_PR_BODY }}'
-            text: A new canary build has been released for docker.
-            webhookUrl: ${{ secrets.DISCORD_DOCKER_UPDATE_URL }}
-
       # version bump was pushed via PR+auto-merge above
 
       # Skipped: separate Web image. The API image contains the frontend in wwwroot.

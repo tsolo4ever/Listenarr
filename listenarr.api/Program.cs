@@ -982,6 +982,27 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Apply UrlBase as a path prefix when configured (must be first in pipeline).
+// Allows Listenarr to run under a subpath, e.g. https://myserver.com/listenarr/
+try
+{
+    using var urlBaseScope = app.Services.CreateScope();
+    var urlBaseCfgService = urlBaseScope.ServiceProvider.GetService<IConfigurationService>();
+    var urlBaseCfg = urlBaseCfgService != null ? await urlBaseCfgService.GetStartupConfigAsync() : null;
+    var urlBase = urlBaseCfg?.UrlBase?.Trim();
+    if (!string.IsNullOrWhiteSpace(urlBase))
+    {
+        if (!urlBase.StartsWith("/")) urlBase = "/" + urlBase;
+        urlBase = urlBase.TrimEnd('/');
+        app.UsePathBase(urlBase);
+        Log.Logger.Information("[Startup] Using URL base path: {UrlBase}", urlBase);
+    }
+}
+catch (Exception ex) when (ex is not OperationCanceledException && ex is not OutOfMemoryException && ex is not StackOverflowException)
+{
+    Log.Logger.Warning(ex, "[Startup] Failed to apply UrlBase path prefix");
+}
+
 // Use forwarded headers middleware (must be early in pipeline).
 // Options are configured in DI to trust common private proxy networks.
 app.UseForwardedHeaders();

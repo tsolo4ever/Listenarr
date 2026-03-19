@@ -318,6 +318,11 @@ export interface ApplicationSettings {
   // Search behavior settings
   // Enable OpenLibrary augmentation/search
   enableOpenLibrarySearch?: boolean
+
+  // Author & series monitoring
+  authorMonitoringEnabled?: boolean
+  authorMonitoringIntervalHours?: number
+  authorMonitoringRssFeedUrl?: string
 }
 
 export interface StartupConfig {

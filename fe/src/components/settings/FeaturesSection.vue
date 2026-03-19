@@ -13,11 +13,49 @@
       <CheckboxCard :modelValue="settings.showCompletedExternalDownloads" @update:modelValue="updateShowCompletedExternalDownloads" title="Show completed external downloads in Activity" description="When enabled, completed torrents/NZBs from external clients will remain visible in the Activity view. When disabled, completed external items will be hidden to reduce clutter." />
     </div>
   </div>
+
+  <div class="form-section monitoring-section">
+    <h3>
+      <PhBell /> Monitoring
+    </h3>
+    <div class="form-body">
+      <CheckboxCard :modelValue="settings.authorMonitoringEnabled ?? true" @update:modelValue="updateAuthorMonitoringEnabled" title="Author &amp; Series Monitoring" description="Periodically check for new releases from authors and series in your library. New books are added as Wanted and searched automatically." />
+
+      <div class="form-group" v-if="settings.authorMonitoringEnabled ?? true">
+        <label>Check Interval (hours)</label>
+        <input
+          type="number"
+          min="1"
+          max="168"
+          class="form-input"
+          :value="settings.authorMonitoringIntervalHours ?? 24"
+          @change="updateAuthorMonitoringIntervalHours(+($event.target as HTMLInputElement).value)"
+        />
+        <span class="form-help">How often to check for new releases. Default: 24 hours.</span>
+      </div>
+
+      <div class="form-group" v-if="settings.authorMonitoringEnabled ?? true">
+        <label>RSS Feed URL <span class="optional">(optional)</span></label>
+        <input
+          type="url"
+          class="form-input"
+          placeholder="https://rss.app/feeds/..."
+          :value="settings.authorMonitoringRssFeedUrl ?? ''"
+          @change="updateAuthorMonitoringRssFeedUrl(($event.target as HTMLInputElement).value)"
+        />
+        <span class="form-help">
+          Paste an RSS feed URL (e.g. from <a href="https://rss.app" target="_blank" rel="noopener">rss.app</a>) pointing to Audible new releases.
+          Items are matched against monitored authors and series via ASIN lookup.
+          Leave blank to use Audimeta author polling instead.
+        </span>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import type { ApplicationSettings } from '@/types'
-import { PhToggleLeft } from '@phosphor-icons/vue'
+import { PhToggleLeft, PhBell } from '@phosphor-icons/vue'
 // Checkbox controls are provided via `CheckboxCard` wrapper where used
 import CheckboxCard from '@/components/settings/CheckboxCard.vue'
 
@@ -46,6 +84,18 @@ function updateEnableNotifications(value: boolean) {
 function updateShowCompletedExternalDownloads(value: boolean) {
   updateField('showCompletedExternalDownloads', value)
 }
+
+function updateAuthorMonitoringEnabled(value: boolean) {
+  updateField('authorMonitoringEnabled', value)
+}
+
+function updateAuthorMonitoringIntervalHours(value: number) {
+  updateField('authorMonitoringIntervalHours', Math.max(1, value))
+}
+
+function updateAuthorMonitoringRssFeedUrl(value: string) {
+  updateField('authorMonitoringRssFeedUrl', value)
+}
 </script>
 
 <style scoped>
@@ -66,4 +116,9 @@ h3 {
 .form-group { margin-bottom: 1.25rem }
 .form-group label { margin-bottom:0.5rem; font-weight:500; color:#fff }
 .form-help { display:block; margin-top:0.5rem; font-size:0.85rem; color:#adb5bd }
+.form-help a { color: #adb5bd; text-decoration: underline; }
+.optional { font-weight: 400; font-size: 0.85rem; color: #adb5bd; }
+.form-input { width: 100%; padding: 0.5rem 0.75rem; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 0.9rem; }
+.form-input[type="number"] { max-width: 120px; }
+.monitoring-section { margin-top: 1.5rem; }
 </style>

@@ -248,6 +248,21 @@ namespace Listenarr.Domain.Models
         /// </summary>
         public bool EnableOpenLibrarySearch { get; set; } = true;
 
-        
+        /// <summary>
+        /// Enable periodic monitoring for new releases by monitored authors and series.
+        /// </summary>
+        public bool AuthorMonitoringEnabled { get; set; } = true;
+
+        /// <summary>
+        /// How often to check for new author/series releases (hours). Default 24.
+        /// </summary>
+        public int AuthorMonitoringIntervalHours { get; set; } = 24;
+
+        /// <summary>
+        /// Optional RSS feed URL to poll for new releases (e.g. an rss.app feed of audible.com/coming-soon).
+        /// When set, items are matched against monitored authors/series via Audimeta ASIN lookup.
+        /// When blank, falls back to polling Audimeta /author/books/{asin} per monitored author.
+        /// </summary>
+        public string AuthorMonitoringRssFeedUrl { get; set; } = string.Empty;
     }
 }

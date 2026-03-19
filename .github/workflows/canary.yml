@@ -100,7 +100,7 @@ jobs:
         id: create_pr
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.GH_PAT || github.token }}
           commit-message: "[skip ci] Bump version to ${{ steps.resolve-version.outputs.VERSION }}"
           branch: "ci/canary-version-bump-${{ steps.resolve-version.outputs.VERSION }}"
           base: canary

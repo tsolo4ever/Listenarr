@@ -1,0 +1,2 @@
+# Always keep our version of CI workflows when merging from upstream
+.github/workflows/canary.yml merge=ours

@@ -59,6 +59,9 @@ namespace Listenarr.Api.Extensions
             // Background worker that processes unmatched-file scan jobs
             services.AddHostedService<UnmatchedScanBackgroundService>();
 
+            // Background service for author/series monitoring (new release detection)
+            services.AddHostedService<AuthorMonitoringService>();
+
             return services;
         }
     }

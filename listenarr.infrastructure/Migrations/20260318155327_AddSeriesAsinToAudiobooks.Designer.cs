@@ -3,6 +3,7 @@ using System;
 using Listenarr.Infrastructure.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Listenarr.Infrastructure.Migrations
 {
     [DbContext(typeof(ListenArrDbContext))]
-    partial class ListenArrDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260318155327_AddSeriesAsinToAudiobooks")]
+    partial class AddSeriesAsinToAudiobooks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.13");
@@ -79,20 +82,6 @@ namespace Listenarr.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("AudnexusApiUrl")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("AuthorMonitoringEnabled")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("AuthorMonitoringIntervalHours")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("AuthorMonitoringRssFeedUrl")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ColonReplacement")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

@@ -109,6 +109,8 @@ jobs:
             This PR bumps the application version to ${{ steps.resolve-version.outputs.VERSION }}.
             The change was produced automatically by the CI canary workflow.
           labels: automated,version-bump
+          add-paths: |
+            listenarr.api/Listenarr.Api.csproj
 
       - name: Merge version bump PR (skip CI)
         uses: actions/github-script@v7
